@@ -5,26 +5,46 @@ import {
   MeshBasicMaterial,
   PerspectiveCamera,
   RingGeometry,
+  SphereGeometry,
   SRGBColorSpace,
   WebGLRenderer,
 } from 'three';
 
-import { ATTACK_PULSE_DURATION } from '../config/combat';
-import { SWORD_SLASH_DURATION } from '../config/progression';
+import { ATTACK_PULSE_DURATION, VISUAL_DEATH_LINGER } from '../config/combat';
+import { SWORD_SLASH_DURATION, XP_PER_GEM } from '../config/progression';
 import {
   CAMERA_FAR,
   CAMERA_FOV,
   CAMERA_NEAR,
   CAMERA_OFFSET,
+  CAMERA_SHAKE_AMOUNT,
   PLAYER_LOOK_HEIGHT,
 } from '../config/world';
 import type { EnemySnapshot, GemSnapshot, WorldSnapshot } from '../world/World';
 import { type Vec3, stepCameraFollow } from './cameraFollow';
+import { selectBernardoAnim, selectSkeletonAnim } from './characterPose';
 import { type BernardoPlaceholder, createBernardoPlaceholder } from './createBernardoPlaceholder';
 import { type ForestArena, createForestArena } from './createForestArena';
-import { type SkeletonAssets, createSkeletonAssets } from './createSkeletonPlaceholder';
+import {
+  type SkeletonAssets,
+  type SkeletonView,
+  createSkeletonAssets,
+} from './createSkeletonPlaceholder';
 import { type XpGemAssets, createXpGemAssets } from './createXpGemPlaceholder';
 import { isWebGL2Available, WebGLInitError } from './webgl';
+
+interface LingeringSkeleton {
+  view: SkeletonView;
+  remaining: number;
+  snapshot: EnemySnapshot;
+}
+
+export interface RendererStats {
+  calls: number;
+  triangles: number;
+  enemies: number;
+  gems: number;
+}
 
 export class GameRenderer {
   private readonly canvas: HTMLCanvasElement;
@@ -34,12 +54,19 @@ export class GameRenderer {
   private readonly bernardo: BernardoPlaceholder;
   private readonly skeletons: SkeletonAssets;
   private readonly gems: XpGemAssets;
-  private readonly skeletonViews = new Map<number, ReturnType<SkeletonAssets['createView']>>();
+  private readonly skeletonViews = new Map<number, SkeletonView>();
+  private readonly lingeringSkeletons = new Map<number, LingeringSkeleton>();
   private readonly gemViews = new Map<number, ReturnType<XpGemAssets['createView']>>();
   private readonly pulse: Mesh;
+  private readonly pulseOuter: Mesh;
   private readonly pulseMaterial: MeshBasicMaterial;
+  private readonly pulseOuterMaterial: MeshBasicMaterial;
+  private readonly impact: Mesh;
+  private readonly impactMaterial: MeshBasicMaterial;
   private readonly slash: Mesh;
+  private readonly slashArc: Mesh;
   private readonly slashMaterial: MeshBasicMaterial;
+  private readonly slashArcMaterial: MeshBasicMaterial;
   private readonly handleResize: () => void;
   private lookAt: Vec3 = { x: 0, y: PLAYER_LOOK_HEIGHT, z: 0 };
   private fxTime = 0;
@@ -98,20 +125,47 @@ export class GameRenderer {
       opacity: 0,
       depthWrite: false,
     });
-    this.pulse = new Mesh(new RingGeometry(0.35, 0.55, 24), this.pulseMaterial);
-    this.pulse.rotation.x = -Math.PI / 2;
-    this.pulse.visible = false;
-    this.forest.scene.add(this.pulse);
-
-    this.slashMaterial = new MeshBasicMaterial({
-      color: new Color(0x9ef7ff),
+    this.pulseOuterMaterial = new MeshBasicMaterial({
+      color: new Color(0x7ad7ff),
       transparent: true,
       opacity: 0,
       depthWrite: false,
     });
-    this.slash = new Mesh(new BoxGeometry(0.22, 0.08, 1), this.slashMaterial);
+    this.pulse = new Mesh(new RingGeometry(0.28, 0.5, 28), this.pulseMaterial);
+    this.pulse.rotation.x = -Math.PI / 2;
+    this.pulse.visible = false;
+    this.pulseOuter = new Mesh(new RingGeometry(0.5, 0.68, 28), this.pulseOuterMaterial);
+    this.pulseOuter.rotation.x = -Math.PI / 2;
+    this.pulseOuter.visible = false;
+    this.forest.scene.add(this.pulse, this.pulseOuter);
+
+    this.impactMaterial = new MeshBasicMaterial({
+      color: new Color(0xfff6c4),
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+    });
+    this.impact = new Mesh(new SphereGeometry(0.16, 8, 6), this.impactMaterial);
+    this.impact.visible = false;
+    this.forest.scene.add(this.impact);
+
+    this.slashMaterial = new MeshBasicMaterial({
+      color: new Color(0xb8fbff),
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+    });
+    this.slashArcMaterial = new MeshBasicMaterial({
+      color: new Color(0x5ce1ff),
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+    });
+    this.slash = new Mesh(new BoxGeometry(0.12, 0.08, 1), this.slashMaterial);
     this.slash.visible = false;
-    this.forest.scene.add(this.slash);
+    this.slashArc = new Mesh(new BoxGeometry(0.06, 0.22, 1), this.slashArcMaterial);
+    this.slashArc.visible = false;
+    this.forest.scene.add(this.slash, this.slashArc);
 
     this.handleResize = () => {
       this.resize();
@@ -129,15 +183,23 @@ export class GameRenderer {
     const { player } = snapshot;
     this.bernardo.group.position.set(player.x, player.y, player.z);
     this.bernardo.group.rotation.y = player.facingYaw;
-    this.bernardo.group.scale.setScalar(1 + player.hurtAmount * 0.08);
-    this.bernardo.fillLight.intensity = 2.4 + player.hurtAmount * 3.2;
+    this.bernardo.fillLight.intensity = 2.5 + player.hurtAmount * 3.2;
     this.bernardo.fillLight.color.setRGB(
       1,
       0.95 - player.hurtAmount * 0.6,
       0.78 - player.hurtAmount * 0.78,
     );
+    this.bernardo.sync(
+      selectBernardoAnim({
+        moving: player.moving,
+        hurtAmount: player.hurtAmount,
+        defeated: snapshot.status === 'gameOver',
+      }),
+      player.hurtAmount,
+      deltaSeconds,
+    );
 
-    this.syncSkeletons(snapshot.enemies);
+    this.syncSkeletons(snapshot.enemies, deltaSeconds);
     this.syncGems(snapshot.gems);
     this.syncPulse(snapshot);
     this.syncSlash(snapshot);
@@ -148,21 +210,37 @@ export class GameRenderer {
       deltaSeconds,
     );
     this.lookAt = pose.lookAt;
-    this.camera.position.set(pose.position.x, pose.position.y, pose.position.z);
+    const shake = player.hurtAmount * CAMERA_SHAKE_AMOUNT;
+    const shakeX = shake === 0 ? 0 : Math.sin(this.fxTime * 55) * shake;
+    const shakeZ = shake === 0 ? 0 : Math.cos(this.fxTime * 47) * shake;
+    this.camera.position.set(pose.position.x + shakeX, pose.position.y, pose.position.z + shakeZ);
     this.camera.lookAt(pose.lookAt.x, pose.lookAt.y, pose.lookAt.z);
 
     this.renderer.render(this.forest.scene, this.camera);
   }
 
+  getStats(): RendererStats {
+    return {
+      calls: this.renderer.info.render.calls,
+      triangles: this.renderer.info.render.triangles,
+      enemies: this.skeletonViews.size + this.lingeringSkeletons.size,
+      gems: this.gemViews.size,
+    };
+  }
+
   resetForNewRun(): void {
     this.clearSkeletons();
+    this.clearLingering();
     this.clearGems();
     this.lookAt = { x: 0, y: PLAYER_LOOK_HEIGHT, z: 0 };
     this.fxTime = 0;
     this.pulse.visible = false;
+    this.pulseOuter.visible = false;
+    this.impact.visible = false;
     this.slash.visible = false;
-    this.bernardo.group.scale.setScalar(1);
-    this.bernardo.fillLight.intensity = 2.4;
+    this.slashArc.visible = false;
+    this.bernardo.resetPose();
+    this.bernardo.fillLight.intensity = 2.5;
     this.bernardo.fillLight.color.setHex(0xfff3c8);
   }
 
@@ -174,14 +252,20 @@ export class GameRenderer {
     this.disposed = true;
     window.removeEventListener('resize', this.handleResize);
     this.clearSkeletons();
+    this.clearLingering();
     this.clearGems();
     this.forest.scene.remove(this.bernardo.group);
-    this.forest.scene.remove(this.pulse);
-    this.forest.scene.remove(this.slash);
+    this.forest.scene.remove(this.pulse, this.pulseOuter, this.impact, this.slash, this.slashArc);
     this.pulse.geometry.dispose();
-    this.pulseMaterial.dispose();
+    this.pulseOuter.geometry.dispose();
+    this.impact.geometry.dispose();
     this.slash.geometry.dispose();
+    this.slashArc.geometry.dispose();
+    this.pulseMaterial.dispose();
+    this.pulseOuterMaterial.dispose();
+    this.impactMaterial.dispose();
     this.slashMaterial.dispose();
+    this.slashArcMaterial.dispose();
     this.bernardo.dispose();
     this.skeletons.dispose();
     this.gems.dispose();
@@ -189,32 +273,73 @@ export class GameRenderer {
     this.renderer.dispose();
   }
 
-  private syncSkeletons(enemies: readonly EnemySnapshot[]): void {
+  private syncSkeletons(enemies: readonly EnemySnapshot[], deltaSeconds: number): void {
     const seen = new Set<number>();
 
     for (const enemy of enemies) {
       seen.add(enemy.id);
+      this.lingeringSkeletons.delete(enemy.id);
       let view = this.skeletonViews.get(enemy.id);
       if (view === undefined) {
         view = this.skeletons.createView();
-        this.forest.scene.add(view);
+        this.forest.scene.add(view.group);
         this.skeletonViews.set(enemy.id, view);
       }
 
-      const deathScale = Math.max(0.05, 1 - enemy.deathAmount);
-      const hitScale = 1 + enemy.hitAmount * 0.18;
-      view.position.set(enemy.x, enemy.y, enemy.z);
-      view.rotation.y = enemy.facingYaw;
-      view.scale.setScalar(deathScale * hitScale);
+      this.poseSkeleton(view, enemy, deltaSeconds);
     }
 
     for (const [id, view] of this.skeletonViews) {
       if (seen.has(id)) {
         continue;
       }
-      this.forest.scene.remove(view);
       this.skeletonViews.delete(id);
+      this.lingeringSkeletons.set(id, {
+        view,
+        remaining: VISUAL_DEATH_LINGER,
+        snapshot: {
+          id,
+          x: view.group.position.x,
+          y: view.group.position.y,
+          z: view.group.position.z,
+          facingYaw: view.group.rotation.y,
+          lifecycle: 'dead',
+          hitAmount: 0,
+          deathAmount: 1,
+          moving: false,
+          contacting: false,
+        },
+      });
     }
+
+    for (const [id, lingering] of this.lingeringSkeletons) {
+      lingering.remaining -= deltaSeconds;
+      if (lingering.remaining <= 0) {
+        this.forest.scene.remove(lingering.view.group);
+        this.lingeringSkeletons.delete(id);
+        continue;
+      }
+      const amount = 1 - lingering.remaining / VISUAL_DEATH_LINGER;
+      lingering.snapshot.deathAmount = Math.min(1, amount);
+      this.poseSkeleton(lingering.view, lingering.snapshot, deltaSeconds);
+    }
+  }
+
+  private poseSkeleton(view: SkeletonView, enemy: EnemySnapshot, deltaSeconds: number): void {
+    view.group.position.set(enemy.x, enemy.y, enemy.z);
+    view.group.rotation.y = enemy.facingYaw;
+    view.sync(
+      selectSkeletonAnim({
+        moving: enemy.moving,
+        contacting: enemy.contacting,
+        hitAmount: enemy.hitAmount,
+        lifecycle: enemy.lifecycle,
+      }),
+      enemy.hitAmount,
+      enemy.deathAmount,
+      deltaSeconds,
+      enemy.id * 1.7,
+    );
   }
 
   private syncGems(gems: readonly GemSnapshot[]): void {
@@ -230,8 +355,10 @@ export class GameRenderer {
       }
 
       const bob = Math.sin(this.fxTime * 5 + gem.id * 1.7) * 0.08;
+      const bulk = 1 + Math.min(0.7, Math.max(0, gem.xp / XP_PER_GEM - 1) * 0.12);
       view.position.set(gem.x, 0.38 + bob, gem.z);
       view.rotation.y = this.fxTime * 2.4 + gem.id;
+      view.scale.setScalar(bulk);
     }
 
     for (const [id, view] of this.gemViews) {
@@ -247,41 +374,63 @@ export class GameRenderer {
     const pulse = snapshot.pulse;
     if (pulse === null) {
       this.pulse.visible = false;
+      this.pulseOuter.visible = false;
+      this.impact.visible = false;
       return;
     }
 
     const progress = 1 - pulse.remaining / ATTACK_PULSE_DURATION;
     this.pulse.visible = true;
+    this.pulseOuter.visible = true;
     this.pulse.position.set(pulse.fromX, 0.12, pulse.fromZ);
-    this.pulse.scale.setScalar(1 + progress * 2.4);
-    this.pulseMaterial.opacity = 0.85 * (1 - progress);
+    this.pulseOuter.position.set(pulse.fromX, 0.12, pulse.fromZ);
+    this.pulse.scale.setScalar(1 + progress * 2.8);
+    this.pulseOuter.scale.setScalar(1 + progress * 3.2);
+    this.pulseMaterial.opacity = 0.9 * (1 - progress);
+    this.pulseOuterMaterial.opacity = 0.55 * (1 - progress);
+
+    this.impact.visible = true;
+    this.impact.position.set(pulse.toX, 0.7, pulse.toZ);
+    this.impact.scale.setScalar(1 + progress * 1.4);
+    this.impactMaterial.opacity = 0.7 * (1 - progress);
   }
 
   private syncSlash(snapshot: WorldSnapshot): void {
     const slash = snapshot.slash;
     if (slash === null) {
       this.slash.visible = false;
+      this.slashArc.visible = false;
       return;
     }
 
     const progress = 1 - slash.remaining / SWORD_SLASH_DURATION;
-    const length = Math.max(0.8, slash.range);
+    const length = Math.max(0.9, slash.range);
+    const aheadX = slash.x + Math.sin(slash.yaw) * (length * 0.55);
+    const aheadZ = slash.z + Math.cos(slash.yaw) * (length * 0.55);
     this.slash.visible = true;
-    this.slash.scale.set(1 + progress * 0.35, 1, length);
-    this.slash.position.set(
-      slash.x + Math.sin(slash.yaw) * (length * 0.55),
-      0.9,
-      slash.z + Math.cos(slash.yaw) * (length * 0.55),
-    );
-    this.slash.rotation.y = slash.yaw;
-    this.slashMaterial.opacity = 0.9 * (1 - progress);
+    this.slashArc.visible = true;
+    this.slash.scale.set(1, 1, length);
+    this.slash.position.set(aheadX, 0.95, aheadZ);
+    this.slash.rotation.set(progress * 0.35, slash.yaw, 0.4 - progress * 0.8);
+    this.slashArc.scale.set(1 + progress * 0.4, 1, length * 0.85);
+    this.slashArc.position.set(aheadX, 1.05, aheadZ);
+    this.slashArc.rotation.set(-0.15, slash.yaw + 0.35, 0.9);
+    this.slashMaterial.opacity = 0.95 * (1 - progress);
+    this.slashArcMaterial.opacity = 0.7 * (1 - progress);
   }
 
   private clearSkeletons(): void {
     for (const view of this.skeletonViews.values()) {
-      this.forest.scene.remove(view);
+      this.forest.scene.remove(view.group);
     }
     this.skeletonViews.clear();
+  }
+
+  private clearLingering(): void {
+    for (const lingering of this.lingeringSkeletons.values()) {
+      this.forest.scene.remove(lingering.view.group);
+    }
+    this.lingeringSkeletons.clear();
   }
 
   private clearGems(): void {

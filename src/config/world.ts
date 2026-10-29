@@ -11,6 +11,7 @@ export const CAMERA_OFFSET = {
 } as const;
 
 export const CAMERA_FOLLOW_SHARPNESS = 10;
+export const CAMERA_SHAKE_AMOUNT = 0.06;
 export const CAMERA_FOV = 38;
 export const CAMERA_NEAR = 0.1;
 export const CAMERA_FAR = 120;

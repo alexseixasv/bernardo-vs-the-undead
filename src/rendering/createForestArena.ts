@@ -33,11 +33,11 @@ interface InstanceTransform {
 export function createForestArena(): ForestArena {
   const scene = new Scene();
   scene.background = new Color(0x1c2d44);
-  scene.fog = new Fog(0x243850, 30, 76);
+  scene.fog = new Fog(0x243850, 26, 72);
 
-  const ambient = new AmbientLight(0xd5e2f5, 0.62);
-  const hemisphere = new HemisphereLight(0xc3d6f0, 0x3a5a44, 0.78);
-  const moon = new DirectionalLight(0xfff6de, 1.35);
+  const ambient = new AmbientLight(0xd5e2f5, 0.68);
+  const hemisphere = new HemisphereLight(0xc3d6f0, 0x3a5a44, 0.82);
+  const moon = new DirectionalLight(0xfff6de, 1.28);
   moon.position.set(10, 20, 9);
   scene.add(ambient, hemisphere, moon);
 
@@ -73,8 +73,20 @@ export function createForestArena(): ForestArena {
     dummy,
     trees.map((tree) => tree.canopyColor),
   );
-  scene.add(trunk.mesh, canopy.mesh);
-  resources.push(trunk, canopy);
+  const highCanopy = createInstancedMesh(
+    new ConeGeometry(0.48, 1.2, 6),
+    new MeshStandardMaterial({ color: 0x2f7a46, roughness: 0.74, metalness: 0.02 }),
+    trees
+      .filter((_, index) => index % 2 === 0)
+      .map((tree) => ({
+        position: new Vector3(tree.x, 2.15 * tree.scale, tree.z),
+        quaternion: new Quaternion(),
+        scale: new Vector3(tree.scale * 0.85, tree.scale * 0.9, tree.scale * 0.85),
+      })),
+    dummy,
+  );
+  scene.add(trunk.mesh, canopy.mesh, highCanopy.mesh);
+  resources.push(trunk, canopy, highCanopy);
 
   const rockRng = mulberry32(77);
   const rocks = layoutRocks(rockRng);
@@ -97,6 +109,35 @@ export function createForestArena(): ForestArena {
   );
   scene.add(tuft.mesh);
   resources.push(tuft);
+
+  const bushRng = mulberry32(113);
+  const bushes = layoutBushes(bushRng);
+  const bush = createInstancedMesh(
+    new SphereGeometry(0.32, 7, 5),
+    new MeshStandardMaterial({ color: 0x2f6b40, roughness: 0.86, metalness: 0 }),
+    bushes,
+    dummy,
+  );
+  scene.add(bush.mesh);
+  resources.push(bush);
+
+  const mushroomRng = mulberry32(131);
+  const mushroomStems = layoutMushrooms(mushroomRng);
+  const stem = createInstancedMesh(
+    new CylinderGeometry(0.04, 0.05, 0.16, 5),
+    new MeshStandardMaterial({ color: 0xf2e6c9, roughness: 0.8, metalness: 0 }),
+    mushroomStems.stems,
+    dummy,
+  );
+  const cap = createInstancedMesh(
+    new SphereGeometry(0.11, 7, 5),
+    new MeshStandardMaterial({ color: 0xc45c6a, roughness: 0.62, metalness: 0.04 }),
+    mushroomStems.caps,
+    dummy,
+    mushroomStems.capColors,
+  );
+  scene.add(stem.mesh, cap.mesh);
+  resources.push(stem, cap);
 
   const stones = layoutBoundaryStones();
   const boundary = createInstancedMesh(
@@ -241,6 +282,49 @@ function layoutGrass(random: () => number): InstanceTransform[] {
     });
   }
   return grass;
+}
+
+function layoutBushes(random: () => number): InstanceTransform[] {
+  const bushes: InstanceTransform[] = [];
+  for (let index = 0; index < 18; index += 1) {
+    const angle = random() * Math.PI * 2;
+    const radius = 8 + random() * (ARENA_HALF_EXTENT - 9);
+    bushes.push({
+      position: new Vector3(Math.cos(angle) * radius, 0.16, Math.sin(angle) * radius),
+      quaternion: new Quaternion(),
+      scale: new Vector3(0.9 + random() * 0.8, 0.45 + random() * 0.35, 0.9 + random() * 0.8),
+    });
+  }
+  return bushes;
+}
+
+function layoutMushrooms(random: () => number): {
+  stems: InstanceTransform[];
+  caps: InstanceTransform[];
+  capColors: number[];
+} {
+  const stems: InstanceTransform[] = [];
+  const caps: InstanceTransform[] = [];
+  const capColors: number[] = [];
+  const colors = [0xc45c6a, 0xd98a4a, 0xb14d7a];
+  for (let index = 0; index < 16; index += 1) {
+    const angle = random() * Math.PI * 2;
+    const radius = 7.5 + random() * 6;
+    const x = Math.cos(angle) * radius;
+    const z = Math.sin(angle) * radius;
+    stems.push({
+      position: new Vector3(x, 0.08, z),
+      quaternion: new Quaternion(),
+      scale: new Vector3(1, 1, 1),
+    });
+    caps.push({
+      position: new Vector3(x, 0.2, z),
+      quaternion: new Quaternion(),
+      scale: new Vector3(1.1, 0.55, 1.1),
+    });
+    capColors.push(colors[index % colors.length] ?? 0xc45c6a);
+  }
+  return { stems, caps, capColors };
 }
 
 function layoutBoundaryStones(): InstanceTransform[] {

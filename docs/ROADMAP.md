@@ -2,7 +2,7 @@
 
 Development is sequenced so each milestone is independently verifiable. A playable vertical slice is more important than broad infrastructure.
 
-**Current milestone:** Phase 4 complete. Phase 5 is next and must not start without explicit approval.
+**Current milestone:** Phase 5 complete. Phase 6 is next and must not start without explicit approval.
 
 Status values: `done`, `next`, `planned`.
 
@@ -15,8 +15,8 @@ Status values: `done`, `next`, `planned`.
 | M2  | First playable scene      | Move a placeholder Bernardo in a forest arena  | done    |
 | M3  | Combat prototype          | Skeleton warriors, auto-attack, death, restart | done    |
 | M4  | Progression               | XP, level-up, one upgradeable ability          | done    |
-| M5  | Visual identity           | Final-style models, animation, audio           | next    |
-| M6  | Siren King                | Boss phases and victory                        | planned |
+| M5  | Visual identity           | Final-style models, animation, audio           | done    |
+| M6  | Siren King                | Boss phases and victory                        | next    |
 | M7  | Polish and performance    | Measured optimization, settings, accessibility | planned |
 | M8  | Public release            | Deployment and portfolio presentation          | planned |
 
@@ -178,33 +178,37 @@ Status values: `done`, `next`, `planned`.
 
 ## M5 — Visual identity
 
-**Goal:** Replace placeholders with stylized public assets and animation, without coupling gameplay to mesh internals.
+**Goal:** Polish the playable prototype with readable characters, procedural animation, combat/XP feedback, forest atmosphere, and synthesized SFX — without coupling gameplay to mesh internals.
+
+**Status:** Complete (procedural polish). Final GLB models and sampled music remain deferred.
 
 **Scope:**
 
-- Bernardo GLB (original, public, licensed as original art)
-- Animation states: idle, run, attack, hit as available
-- Additional skeleton variants if combat remains stable
-- Environment art improvement
-- Howler.js music and SFX
+- Improved procedural Bernardo and Skeleton Warrior meshes
+- Lightweight pose selection (`idle`, `walk`, `hurt`, `defeat` / `contact`, `hit`, `death`)
+- Combat VFX for Magic Pulse and Lightning Sword
+- Magnetized XP gems and cap aggregation (no silent XP)
+- Forest atmosphere (fog, bushes, mushrooms, lighting)
+- Web Audio synthesized SFX, mute, gesture unlock
+- HUD polish and a development-only performance overlay
 
-**Out of scope:** Siren King model unless it is already ready and isolated behind config.
+**Out of scope:** Siren King, extra enemy types, extra weapons, Howler.js, third-party character downloads, Rapier, React.
 
 **Deliverables:**
 
-- Asset catalog and loader adapter
-- Animation mixer lifecycle
-- Asset attribution updates
-- Fallback placeholders if an asset fails to load in development
+- Character pose adapter boundary for a later GLB + `AnimationMixer`
+- Synthesized `AudioSystem` (ADR 0008)
+- `docs/PERFORMANCE.md` with measured FPS at 14 / 30 / 50 enemies (dev stress)
 
 **Acceptance criteria:**
 
-- Bernardo’s public stylized model plays in-game.
-- Missing or swapped assets do not require combat code changes.
-- Audio starts only after a user gesture where browsers require it.
+- Bernardo and skeletons read at gameplay camera distance and animate without moving simulation bodies.
+- Combat and XP feedback are visually distinct; XP is neither lost nor duplicated.
+- Audio is silent until a user gesture and can be muted.
+- Production enemy cap stays at 14; stress counts are development-only.
 - No private photographs or unlicensed files are added.
 
-**Testing requirements:** Loader failure fallback test; browser verification; production build size sanity check.
+**Testing requirements:** Pose selection, gem aggregation/conservation, audio mute/unlock, restart cleanup; browser verification; production build.
 
 **Dependencies:** M4. Original or licensed assets.
 

@@ -4,7 +4,7 @@ Bernardo vs. The Undead: Rise of the Siren King
 
 This document is the gameplay source of truth. It distinguishes **confirmed** requirements from **planned** ideas. Numeric combat values are not finalized; they will live in typed configuration once combat exists.
 
-**Status:** Confirmed design. Phase 4 is a playable combat-and-progression prototype: Skeleton Warriors, XP gems, paused level-ups, and five data-driven upgrades. The Siren King, audio, and final models are not implemented yet.
+**Status:** Confirmed design. Phase 5 is a polished combat-and-progression prototype: procedural character animation, synthesized SFX, and magnetized XP gems. The Siren King and final GLB models are not implemented yet.
 
 ## 1. Premise
 
@@ -79,19 +79,21 @@ Explicitly **not** in this slice: additional skeleton types, audio, final models
 - Smooth movement at a consistent configured speed.
 - Compatible with an isometric follow camera.
 - Has health. Reaching zero ends the run.
-- Future systems will attach abilities, damage feedback, and animation states.
+- Abilities, damage feedback, and animation states exist. Poses are render-only; simulation still owns position.
 
-### Planned animations
+### Animations
 
-| Animation | Intent            | Status                  |
-| --------- | ----------------- | ----------------------- |
-| Idle      | Default pose      | Planned                 |
-| Run       | Locomotion        | Planned                 |
-| Attack    | Primary attack    | Planned                 |
-| Hit       | Damage reaction   | Planned                 |
-| Victory   | Boss defeated     | Planned                 |
-| Defeat    | Run failed        | Planned                 |
-| Dodge     | Optional flourish | Not a confirmed control |
+Procedural limb poses on the placeholder mesh. A later GLB can reuse the same pose names.
+
+| Animation | Intent            | Status                          |
+| --------- | ----------------- | ------------------------------- |
+| Idle      | Default pose      | Implemented (procedural bob)    |
+| Walk      | Locomotion        | Implemented (arm/leg swing)     |
+| Attack    | Primary attack    | World VFX; no Bernardo attack pose |
+| Hit       | Damage reaction   | Implemented (brief shake)       |
+| Victory   | Boss defeated     | Planned                         |
+| Defeat    | Run failed        | Implemented (tilt)              |
+| Dodge     | Optional flourish | Not a confirmed control         |
 
 Dodge is **not** a confirmed gameplay action. Early movement is walk/run only.
 
@@ -190,6 +192,7 @@ Implemented now:
 - Skeleton Warrior contact damage with a player invulnerability window.
 - One contact hit is applied per window, even if several skeletons overlap.
 - Game over at zero health, with a kill count and in-session restart.
+- Magic Pulse shows expanding gold/cyan rings and a brief impact flash. Lightning Sword shows a cyan directional slash. Hit flashes and a small configurable camera shake are render-only.
 
 ## 11. Progression
 
@@ -204,6 +207,8 @@ Implemented now:
 
 - Each slain Skeleton Warrior drops one XP gem (`XP_PER_GEM = 10`) at its death position.
 - Gems are collected on the XZ plane inside `pickupRadius`. They do not block movement.
+- Inside `pickupRadius * GEM_ATTRACT_MULTIPLIER`, gems move toward Bernardo in simulation. Pickup still happens only inside `pickupRadius`, once.
+- Hitting `MAX_ACTIVE_GEMS` merges the closest gems and preserves total XP. Overflow is never granted silently.
 - XP is integer. Threshold for level `n → n+1` is `20 + (n - 1) * 10`. Excess XP carries over. One award can cross several levels.
 - Each earned level grants exactly one upgrade choice, processed sequentially.
 - Simulation pauses for the overlay: no movement, spawn, attacks, contact damage, or survival-time advance. Rendering may continue. See ADR 0007.
@@ -301,19 +306,21 @@ There is no confirmed meta-progression between runs in the first public version.
 - Health must be observable.
 - The player must be able to tell that a run has ended.
 
-### Implemented in Phase 4
+### Implemented in Phase 5
 
 - Health bar and current/max HP.
 - Level, XP bar, and XP values.
 - Kill count and survival timer.
+- Mute button.
 - Level-up overlay with three upgrade cards, mouse and 1–3 keys.
+- Game Over overlay with Restart.
 
 ### Planned
 
 - Pause menu.
 - Settings, including graphics quality later.
-- Victory and defeat screens.
-- Accessibility improvements in polish.
+- Victory screen.
+- Sampled music and accessibility options.
 
 UI is HTML/CSS, not a frontend framework.
 
@@ -321,7 +328,7 @@ UI is HTML/CSS, not a frontend framework.
 
 Planned, not confirmed for the first slice: movement, attack, hit, death, pickup, level-up, boss telegraphs, victory, defeat, and forest music.
 
-Audio is introduced with Howler.js when Phase 5 needs it.
+Phase 5 uses original synthesized SFX through the Web Audio API (Magic Pulse, Lightning Sword, hit, gem, level-up, upgrade, player hurt, Game Over). Audio unlocks after the first click or key. Mute is on the HUD. Music and Howler.js wait until sampled tracks exist. See ADR 0008.
 
 ## 17. Art and Asset Rules
 

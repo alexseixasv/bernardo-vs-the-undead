@@ -1,7 +1,11 @@
+import { AudioSystem } from '../audio/AudioSystem';
+import { detectSfx } from '../audio/detectSfx';
+import { PerformanceOverlay } from '../debug/PerformanceOverlay';
+import { readDevFlags } from '../debug/devFlags';
 import { KeyboardInput } from '../input/KeyboardInput';
 import { GameRenderer } from '../rendering/GameRenderer';
 import { Hud } from '../ui/Hud';
-import { World } from '../world/World';
+import { World, type WorldSnapshot } from '../world/World';
 import { GameLoop } from './GameLoop';
 
 export class Game {
@@ -10,13 +14,23 @@ export class Game {
   private readonly world: World;
   private readonly input: KeyboardInput;
   private readonly hud: Hud;
+  private readonly audio: AudioSystem;
+  private readonly perf: PerformanceOverlay | null;
   private lastRenderSeconds: number | null = null;
+  private lastSnapshot: WorldSnapshot | null = null;
   private disposed = false;
+  private readonly unlockAudio = (): void => {
+    void this.audio.unlock();
+  };
 
   constructor(canvas: HTMLCanvasElement) {
-    this.world = new World();
+    const flags = readDevFlags();
+    this.world = new World(
+      flags.stress === null ? {} : { maxActiveSkeletons: flags.stress, stressFill: true },
+    );
     this.input = new KeyboardInput();
     this.renderer = new GameRenderer(canvas);
+    this.audio = new AudioSystem();
     this.hud = new Hud({
       onRestart: () => {
         this.restart();
@@ -24,7 +38,16 @@ export class Game {
       onSelectUpgrade: (index) => {
         this.selectUpgrade(index);
       },
+      onToggleMute: () => {
+        const muted = this.audio.toggleMuted();
+        this.hud.setMuted(muted);
+        void this.audio.unlock();
+      },
     });
+    this.hud.setMuted(this.audio.isMuted());
+    this.perf = flags.perf ? new PerformanceOverlay() : null;
+    window.addEventListener('pointerdown', this.unlockAudio);
+    window.addEventListener('keydown', this.unlockAudio);
     this.loop = new GameLoop({
       update: (deltaSeconds) => {
         this.world.step(deltaSeconds, this.input.getIntent());
@@ -35,8 +58,14 @@ export class Game {
       },
       render: (interpolationAlpha) => {
         const snapshot = this.world.getSnapshot(interpolationAlpha);
-        this.renderer.render(snapshot, this.consumeRenderDelta());
+        const delta = this.consumeRenderDelta();
+        this.renderer.render(snapshot, delta);
         this.hud.sync(snapshot);
+        this.playObservedSfx(snapshot);
+        this.lastSnapshot = snapshot;
+        if (this.perf !== null) {
+          this.perf.update(delta, this.renderer.getStats());
+        }
       },
     });
   }
@@ -67,6 +96,7 @@ export class Game {
     this.world.reset();
     this.renderer.resetForNewRun();
     this.lastRenderSeconds = null;
+    this.lastSnapshot = null;
     this.hud.sync(this.world.getSnapshot(1));
 
     if (this.loop.getStatus() === 'paused') {
@@ -85,9 +115,13 @@ export class Game {
     }
 
     this.disposed = true;
+    window.removeEventListener('pointerdown', this.unlockAudio);
+    window.removeEventListener('keydown', this.unlockAudio);
     this.loop.dispose();
     this.input.dispose();
     this.hud.dispose();
+    this.audio.dispose();
+    this.perf?.dispose();
     this.renderer.dispose();
   }
 
@@ -101,11 +135,18 @@ export class Game {
       return;
     }
 
+    this.audio.play('upgrade');
     this.lastRenderSeconds = null;
     this.hud.sync(this.world.getSnapshot(1));
 
     if (this.world.getStatus() === 'playing' && this.loop.getStatus() === 'paused') {
       this.loop.resume();
+    }
+  }
+
+  private playObservedSfx(snapshot: WorldSnapshot): void {
+    for (const id of detectSfx(this.lastSnapshot, snapshot)) {
+      this.audio.play(id);
     }
   }
 

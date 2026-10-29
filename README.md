@@ -8,7 +8,7 @@ Fight endless hordes of skeletons, unlock powerful abilities, survive an increas
 
 Inspired by the fast-paced progression and survival mechanics of _Vampire Survivors_, Bernardo vs. The Undead combines accessible gameplay, stylized 3D graphics, and challenging encounters in a single-player browser experience.
 
-> **Project Status:** Phase 4 complete — survive skeleton warriors, collect XP gems, level up, and choose upgrades. Audio, final models, and the Siren King are not implemented yet.
+> **Project Status:** Phase 5 complete — polished procedural characters, walking animation, synthesized SFX, and XP gem magnet. The Siren King and final GLB models are not implemented yet.
 
 ---
 
@@ -202,7 +202,7 @@ The project prioritizes modern web technologies, modular architecture, performan
 | 3D Rendering        | Three.js                                                     |
 | Development & Build | Vite                                                         |
 | Physics             | Simplified gameplay collision first; Rapier only if required |
-| Audio               | Howler.js, when audio is introduced                          |
+| Audio               | Web Audio API synthesized SFX (Howler.js later for music)    |
 | UI                  | HTML5 / CSS3                                                 |
 | Unit Testing        | Vitest                                                       |
 | End-to-End Testing  | Playwright, when a playable scene exists                     |
@@ -389,7 +389,12 @@ npm install
 npm run dev
 ```
 
-Open the local URL displayed by Vite. Move with WASD or the arrow keys. Bernardo attacks nearby skeletons automatically. Defeated skeletons drop XP gems. Level-ups pause the run and present three upgrade cards (click or press 1–3).
+Open the local URL displayed by Vite. Move with WASD or the arrow keys. Bernardo attacks nearby skeletons automatically. Defeated skeletons drop XP gems that slide toward him. Level-ups pause the run and present three upgrade cards (click or press 1–3). Click once or press a key to enable sound; use the Sound button to mute.
+
+Development-only query flags (ignored in production builds):
+
+- `?perf` — FPS, frame time, draw calls, triangles, skeleton count, gem count
+- `?stress=30` or `?stress=50` — raise the active skeleton cap for local profiling; production stays at 14
 
 ### Production Build
 
@@ -506,11 +511,12 @@ The game will be developed incrementally through independently testable mileston
 
 ### Phase 5 — Visual Identity
 
-- [ ] Integrate Bernardo's final 3D model.
-- [ ] Add character animations.
-- [ ] Introduce additional skeleton variants.
-- [ ] Improve environmental assets.
-- [ ] Add sound effects and music.
+- [x] Polish Bernardo and Skeleton Warrior placeholders (procedural, not final GLB).
+- [x] Add lightweight procedural idle, walk, hurt, and death poses.
+- [x] Improve the forest atmosphere (fog, bushes, mushrooms, lighting).
+- [x] Add synthesized combat and UI sound effects (no music yet).
+- [ ] Integrate Bernardo's final 3D model (deferred; pose names are ready).
+- [ ] Introduce additional skeleton variants (out of scope for this phase).
 
 ### Phase 6 — Siren King
 

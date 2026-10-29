@@ -23,6 +23,11 @@ function showBootError(message: string): void {
     levelUp.hidden = true;
   }
 
+  const mute = document.getElementById('mute-button');
+  if (mute) {
+    mute.hidden = true;
+  }
+
   const errorElement = document.getElementById('boot-error');
   if (!(errorElement instanceof HTMLElement)) {
     return;

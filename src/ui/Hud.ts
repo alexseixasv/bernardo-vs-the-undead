@@ -4,6 +4,7 @@ import type { WorldSnapshot } from '../world/World';
 export interface HudCallbacks {
   onRestart: () => void;
   onSelectUpgrade: (index: number) => void;
+  onToggleMute: () => void;
 }
 
 export class Hud {
@@ -20,6 +21,7 @@ export class Hud {
   private readonly levelUp: HTMLElement | null;
   private readonly levelUpTitle: HTMLElement | null;
   private readonly upgradeCards: HTMLElement | null;
+  private readonly muteButton: HTMLButtonElement | null;
   private readonly callbacks: HudCallbacks;
 
   private lastHealth = Number.NaN;
@@ -49,8 +51,19 @@ export class Hud {
     this.upgradeCards = document.getElementById('upgrade-cards');
     const button = document.getElementById('restart-button');
     this.restartButton = button instanceof HTMLButtonElement ? button : null;
+    const mute = document.getElementById('mute-button');
+    this.muteButton = mute instanceof HTMLButtonElement ? mute : null;
     this.restartButton?.addEventListener('click', this.handleRestart);
+    this.muteButton?.addEventListener('click', this.handleMute);
     window.addEventListener('keydown', this.handleKeyDown);
+  }
+
+  setMuted(muted: boolean): void {
+    if (!this.muteButton) {
+      return;
+    }
+    this.muteButton.setAttribute('aria-pressed', muted ? 'true' : 'false');
+    this.muteButton.textContent = muted ? 'Muted' : 'Sound';
   }
 
   sync(snapshot: WorldSnapshot): void {
@@ -131,6 +144,7 @@ export class Hud {
 
   dispose(): void {
     this.restartButton?.removeEventListener('click', this.handleRestart);
+    this.muteButton?.removeEventListener('click', this.handleMute);
     window.removeEventListener('keydown', this.handleKeyDown);
   }
 
@@ -198,6 +212,10 @@ export class Hud {
 
   private readonly handleRestart = (): void => {
     this.callbacks.onRestart();
+  };
+
+  private readonly handleMute = (): void => {
+    this.callbacks.onToggleMute();
   };
 
   private readonly handleKeyDown = (event: KeyboardEvent): void => {

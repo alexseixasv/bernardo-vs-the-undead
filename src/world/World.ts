@@ -1,5 +1,6 @@
 import { deriveCombatStats } from '../config/abilities';
 import { DEATH_DURATION, HIT_FLASH_DURATION, PLAYER_HURT_COOLDOWN } from '../config/combat';
+import { MAX_ACTIVE_SKELETONS } from '../config/combat';
 import { XP_PER_GEM } from '../config/progression';
 import { ARENA_HALF_EXTENT } from '../config/world';
 import { cloneEnemyState, type EnemyState } from '../entities/enemy';
@@ -21,6 +22,7 @@ import {
 import { movePlayer } from '../systems/MovementSystem';
 import {
   applyExperienceToPlayer,
+  attractGems,
   collectGems,
   dropGemsForDeaths,
   type CombatDeath,
@@ -38,6 +40,8 @@ export interface PlayerSnapshot {
   health: number;
   maxHealth: number;
   hurtAmount: number;
+  moving: boolean;
+  radius: number;
   level: number;
   xp: number;
   xpToNext: number;
@@ -53,12 +57,15 @@ export interface EnemySnapshot {
   lifecycle: EnemyState['lifecycle'];
   hitAmount: number;
   deathAmount: number;
+  moving: boolean;
+  contacting: boolean;
 }
 
 export interface GemSnapshot {
   id: number;
   x: number;
   z: number;
+  xp: number;
 }
 
 export interface WorldSnapshot {
@@ -78,6 +85,8 @@ export interface WorldOptions {
   player?: PlayerState;
   enemies?: EnemyState[];
   gems?: XpGem[];
+  maxActiveSkeletons?: number;
+  stressFill?: boolean;
 }
 
 export class World {
@@ -95,6 +104,9 @@ export class World {
   private kills = 0;
   private elapsedSeconds = 0;
   private nextGemId = 1;
+  private previousGems = new Map<number, XpGem>();
+  private readonly maxActiveSkeletons: number;
+  private readonly stressFill: boolean;
 
   constructor(options: WorldOptions = {}) {
     this.random = options.random ?? mulberry32(20261029);
@@ -102,6 +114,12 @@ export class World {
     this.previousPlayer = clonePlayerState(this.player);
     this.enemies = (options.enemies ?? []).map(cloneEnemyState);
     this.gems = (options.gems ?? []).map(cloneXpGem);
+    this.maxActiveSkeletons = options.maxActiveSkeletons ?? MAX_ACTIVE_SKELETONS;
+    this.stressFill = options.stressFill === true;
+    if (this.stressFill) {
+      this.spawn = createSpawnState();
+      this.spawn.cooldown = 0;
+    }
   }
 
   step(deltaSeconds: number, intent: InputIntent): void {
@@ -111,6 +129,7 @@ export class World {
 
     this.previousPlayer = clonePlayerState(this.player);
     this.previousEnemies = new Map(this.enemies.map((enemy) => [enemy.id, cloneEnemyState(enemy)]));
+    this.previousGems = new Map(this.gems.map((gem) => [gem.id, cloneXpGem(gem)]));
     this.elapsedSeconds += deltaSeconds;
 
     const stats = deriveCombatStats(this.player.abilities);
@@ -126,9 +145,29 @@ export class World {
       this.elapsedSeconds,
       deltaSeconds,
       this.random,
+      this.maxActiveSkeletons,
     );
     this.spawn = spawned.spawn;
     let enemies = spawned.enemy === null ? this.enemies : [...this.enemies, spawned.enemy];
+    if (this.stressFill) {
+      for (let extra = 0; extra < 8; extra += 1) {
+        this.spawn.cooldown = 0;
+        const burst = trySpawnSkeleton(
+          this.spawn,
+          this.player,
+          enemies,
+          this.elapsedSeconds,
+          deltaSeconds,
+          this.random,
+          this.maxActiveSkeletons,
+        );
+        this.spawn = burst.spawn;
+        if (burst.enemy === null) {
+          break;
+        }
+        enemies = [...enemies, burst.enemy];
+      }
+    }
 
     enemies = enemies.map((enemy) => pursuePlayer(enemy, this.player, deltaSeconds));
 
@@ -149,15 +188,13 @@ export class World {
 
     const dropped = dropGemsForDeaths(this.gems, deaths, this.nextGemId, XP_PER_GEM);
     this.nextGemId = dropped.nextId;
-    let gems = dropped.gems;
-    let gainedXp = dropped.overflowXp;
+    let gems = attractGems(this.player, dropped.gems, stats.pickupRadius, deltaSeconds);
 
     const collected = collectGems(this.player, gems, stats.pickupRadius);
     gems = collected.gems;
-    gainedXp += collected.gainedXp;
     this.gems = gems;
-    if (gainedXp > 0) {
-      this.player = applyExperienceToPlayer(this.player, gainedXp);
+    if (collected.gainedXp > 0) {
+      this.player = applyExperienceToPlayer(this.player, collected.gainedXp);
     }
 
     const remaining: EnemyState[] = [];
@@ -212,7 +249,11 @@ export class World {
     this.previousEnemies = new Map();
     this.enemies = [];
     this.gems = [];
+    this.previousGems = new Map();
     this.spawn = createSpawnState();
+    if (this.stressFill) {
+      this.spawn.cooldown = 0;
+    }
     this.pulse = null;
     this.slash = null;
     this.offers = [];
@@ -264,13 +305,17 @@ export class World {
           this.player.hurtCooldown > 0
             ? Math.min(1, this.player.hurtCooldown / PLAYER_HURT_COOLDOWN)
             : 0,
+        moving:
+          Math.hypot(this.player.x - this.previousPlayer.x, this.player.z - this.previousPlayer.z) >
+          1e-4,
+        radius: this.player.radius,
         level: this.player.level,
         xp: this.player.xp,
         xpToNext: this.player.xpToNext,
         pendingLevelUps: this.player.pendingLevelUps,
       },
       enemies: this.enemies.map((enemy) => this.interpolateEnemy(enemy, alpha)),
-      gems: this.gems.map((gem) => ({ id: gem.id, x: gem.x, z: gem.z })),
+      gems: this.gems.map((gem) => this.interpolateGem(gem, alpha)),
       pulse: this.pulse,
       slash: this.slash,
       offers: this.getOffers(),
@@ -305,6 +350,21 @@ export class World {
         enemy.lifecycle === 'dead' && enemy.deathTimer > 0
           ? 1 - enemy.deathTimer / DEATH_DURATION
           : 0,
+      moving: Math.hypot(enemy.x - previous.x, enemy.z - previous.z) > 1e-4,
+      contacting:
+        enemy.lifecycle === 'alive' &&
+        Math.hypot(enemy.x - this.player.x, enemy.z - this.player.z) <=
+          this.player.radius + enemy.radius + 0.04,
+    };
+  }
+
+  private interpolateGem(gem: XpGem, alpha: number): GemSnapshot {
+    const previous = this.previousGems.get(gem.id) ?? gem;
+    return {
+      id: gem.id,
+      x: lerp(previous.x, gem.x, alpha),
+      z: lerp(previous.z, gem.z, alpha),
+      xp: gem.xp,
     };
   }
 }

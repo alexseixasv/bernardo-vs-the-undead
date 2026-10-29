@@ -19,4 +19,5 @@ export const SPAWN_ATTEMPTS = 8;
 
 export const DEATH_DURATION = 0.32;
 export const HIT_FLASH_DURATION = 0.14;
-export const ATTACK_PULSE_DURATION = 0.16;
+export const ATTACK_PULSE_DURATION = 0.2;
+export const VISUAL_DEATH_LINGER = 0.35;

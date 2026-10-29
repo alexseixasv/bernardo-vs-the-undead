@@ -4,10 +4,13 @@ import { MAX_ACTIVE_GEMS, XP_PER_GEM, xpRequiredForLevel } from '../../../src/co
 import { createPlayerState } from '../../../src/entities/player';
 import { createXpGem } from '../../../src/entities/xpGem';
 import {
+  aggregateGems,
   applyExperienceToPlayer,
+  attractGems,
   awardExperience,
   collectGems,
   dropGemsForDeaths,
+  totalGemXp,
 } from '../../../src/systems/ProgressionSystem';
 
 describe('awardExperience', () => {
@@ -74,7 +77,7 @@ describe('gem pickup', () => {
     expect(result.gems).toHaveLength(1);
   });
 
-  it('drops one gem per death and converts overflow into XP', () => {
+  it('drops one gem per death and aggregates overflow without granting XP', () => {
     const deaths = Array.from({ length: MAX_ACTIVE_GEMS + 2 }, (_, index) => ({
       id: index + 1,
       x: index,
@@ -83,8 +86,29 @@ describe('gem pickup', () => {
     const result = dropGemsForDeaths([], deaths, 1, XP_PER_GEM);
 
     expect(result.gems).toHaveLength(MAX_ACTIVE_GEMS);
-    expect(result.overflowXp).toBe(XP_PER_GEM * 2);
+    expect(totalGemXp(result.gems)).toBe(XP_PER_GEM * (MAX_ACTIVE_GEMS + 2));
     expect(result.nextId).toBe(MAX_ACTIVE_GEMS + 3);
+  });
+
+  it('merges nearby gems while conserving XP and never duplicating ids', () => {
+    const merged = aggregateGems(
+      [createXpGem(1, 0, 0, 10), createXpGem(2, 0.1, 0, 10), createXpGem(3, 8, 0, 10)],
+      2,
+    );
+
+    expect(merged).toHaveLength(2);
+    expect(totalGemXp(merged)).toBe(30);
+    expect(new Set(merged.map((gem) => gem.id)).size).toBe(2);
+  });
+
+  it('moves gems toward Bernardo inside the attract radius but not inside pickup', () => {
+    const player = createPlayerState();
+    const pulled = attractGems(player, [createXpGem(1, 2.2, 0, XP_PER_GEM)], 1.15, 0.1);
+    expect(pulled[0]?.x).toBeLessThan(2.2);
+    expect(pulled[0]?.x).toBeGreaterThan(1.15);
+
+    const far = attractGems(player, [createXpGem(1, 8, 0, XP_PER_GEM)], 1.15, 0.1);
+    expect(far[0]?.x).toBe(8);
   });
 });
 

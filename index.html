@@ -12,14 +12,14 @@
         <div class="hud-meters">
           <div class="hud-health">
             <span class="hud-label">Health</span>
-            <div class="health-bar" aria-hidden="true">
+            <div class="health-bar" role="meter" aria-label="Health">
               <div id="health-fill" class="health-fill"></div>
             </div>
             <span id="health-text">100/100</span>
           </div>
           <div class="hud-xp">
             <span class="hud-label">Lv <strong id="player-level">1</strong></span>
-            <div class="xp-bar" aria-hidden="true">
+            <div class="xp-bar" role="meter" aria-label="Experience">
               <div id="xp-fill" class="xp-fill"></div>
             </div>
             <span id="xp-text">0/20</span>
@@ -31,6 +31,7 @@
         </div>
       </div>
       <p id="controls-hint" class="controls-hint">Move: WASD / Arrow Keys</p>
+      <button id="mute-button" class="mute-button" type="button" aria-pressed="false">Sound</button>
       <div id="level-up" class="level-up" hidden>
         <div class="level-up-panel">
           <p class="level-up-kicker">Level Up</p>
