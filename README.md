@@ -8,7 +8,7 @@ Fight endless hordes of skeletons, unlock powerful abilities, survive an increas
 
 Inspired by the fast-paced progression and survival mechanics of _Vampire Survivors_, Bernardo vs. The Undead combines accessible gameplay, stylized 3D graphics, and challenging encounters in a single-player browser experience.
 
-> **Project Status:** Phase 5 complete — polished procedural characters, walking animation, synthesized SFX, and XP gem magnet. The Siren King and final GLB models are not implemented yet.
+> **Project Status:** Phase 6 complete — instanced skeleton rendering, measured horde performance, and the Phase 5 combat loop. The Siren King and final GLB models are not implemented yet.
 
 ---
 
@@ -393,8 +393,9 @@ Open the local URL displayed by Vite. Move with WASD or the arrow keys. Bernardo
 
 Development-only query flags (ignored in production builds):
 
-- `?perf` — FPS, frame time, draw calls, triangles, skeleton count, gem count
-- `?stress=30` or `?stress=50` — raise the active skeleton cap for local profiling; production stays at 14
+- `?perf` — FPS, median/p95 frame time, sim/render ms, draws, triangles, skeletons, gems, heap
+- `?stress=14|30|50|100|200` — raise the living skeleton cap for local profiling (clamped at 200); production stays at 14
+- `?bench` — skip contact damage and level-up pauses so samples stay in combat; combine with `?perf&stress=`
 
 ### Production Build
 
@@ -518,7 +519,13 @@ The game will be developed incrementally through independently testable mileston
 - [ ] Integrate Bernardo's final 3D model (deferred; pose names are ready).
 - [ ] Introduce additional skeleton variants (out of scope for this phase).
 
-### Phase 6 — Siren King
+### Phase 6 — Horde rendering
+
+- [x] Instance skeleton body parts while keeping walk/hit/death poses.
+- [x] Add repeatable `?perf` / `?stress` / `?bench` measurements.
+- [x] Cut draw calls at 50 enemies by more than 50% versus the Phase 5 baseline.
+
+### Phase 7 — Siren King
 
 - [ ] Create the original Siren King model.
 - [ ] Implement boss AI.
@@ -526,16 +533,16 @@ The game will be developed incrementally through independently testable mileston
 - [ ] Add boss-specific visual effects.
 - [ ] Implement the victory sequence.
 
-### Phase 7 — Polish and Optimization
+### Phase 8 — Polish and Optimization
 
-- [ ] Optimize enemy rendering.
-- [ ] Improve collision performance.
+- [x] Optimize skeleton horde rendering (Phase 6).
+- [ ] Improve collision performance if measurements require it.
 - [ ] Add graphics settings.
 - [ ] Implement optional local persistence.
 - [ ] Add accessibility improvements.
 - [ ] Improve loading performance.
 
-### Phase 8 — Public Release
+### Phase 9 — Public Release
 
 - [ ] Complete automated testing.
 - [ ] Review architecture documentation for the public build.

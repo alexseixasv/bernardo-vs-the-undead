@@ -157,13 +157,16 @@ body,
 .perf-overlay {
   position: absolute;
   left: 1.15rem;
+  right: 7.5rem;
   bottom: 3.2rem;
   z-index: 2;
+  max-width: 52rem;
   padding: 0.35rem 0.6rem;
   border: 1px solid rgba(92, 225, 255, 0.35);
   background: rgba(8, 14, 22, 0.78);
   color: #d6f4ff;
-  font-size: 0.78rem;
+  font-size: 0.74rem;
+  line-height: 1.45;
   pointer-events: none;
 }
 

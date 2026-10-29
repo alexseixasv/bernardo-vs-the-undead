@@ -8,7 +8,7 @@ Related decisions: `docs/decisions/`.
 
 ## 1. Current Runtime Reality
 
-Phase 5 is implemented: the Phase 4 combat-and-progression loop plus procedural character polish, render-only animation, synthesized SFX, and a development performance overlay.
+Phase 6 is implemented: the Phase 5 combat loop plus instanced skeleton body parts, compact interpolation poses, and a development overlay that splits sim vs render time.
 
 | Item                                     | Status          |
 | ---------------------------------------- | --------------- |
@@ -24,6 +24,7 @@ Phase 5 is implemented: the Phase 4 combat-and-progression loop plus procedural 
 | XP gems, leveling, ability choices       | Implemented     |
 | Procedural animation and combat VFX      | Implemented     |
 | Synthesized Web Audio SFX                | Implemented     |
+| Instanced skeleton horde                 | Implemented     |
 | Boss                                     | Not implemented |
 
 Do not create empty folders to match a future tree. Add modules when a milestone needs them.
@@ -68,9 +69,11 @@ src/
   rendering/
     GameRenderer.ts                    WebGLRenderer, views, VFX, dispose
     characterPose.ts                   Pure animation-state selection
+    skeletonPartPose.ts                Procedural limb pose numbers
+    instanceSlotPool.ts                Dense id → instance slot mapping
     createForestArena.ts               Procedural forest
     createBernardoPlaceholder.ts       Stylized placeholder mesh + limbs
-    createSkeletonPlaceholder.ts       Shared-geometry warrior views
+    createInstancedSkeletonHorde.ts    Eight InstancedMesh body parts
     createXpGemPlaceholder.ts          Shared-geometry XP crystals
     cameraFollow.ts                    Smooth isometric follow
     webgl.ts                           WebGL2 detection
@@ -78,8 +81,9 @@ src/
     AudioSystem.ts                     Web Audio synthesizer, mute, unlock
     detectSfx.ts                       Snapshot-delta SFX cues
   debug/
-    devFlags.ts                        Dev-only ?perf and ?stress
-    PerformanceOverlay.ts              FPS / draw overlay
+    devFlags.ts                        Dev-only ?perf, ?stress, ?bench
+    frameStats.ts                      Median / percentile helpers
+    PerformanceOverlay.ts              FPS / sim / render overlay
   ui/Hud.ts                            Health, XP, kills, timer, overlays, mute
   style.css
 ```
@@ -213,8 +217,8 @@ Implemented renderer responsibilities:
 - Own the `WebGLRenderer`, resize handling, and WebGL2 checks.
 - Draw a procedural forest (shared/instanced trees, rocks, grass, bushes, mushrooms, fog).
 - Draw a stylized Bernardo placeholder whose transform is copied from simulation. Limb idle/walk/hurt/defeat poses are render-only.
-- Pool Skeleton Warrior views by id with shared bone geometries and materials. Procedural idle/walk/contact/hit/death poses do not move simulation bodies.
-- Linger defeated skeleton meshes for `VISUAL_DEATH_LINGER` so the death pose can finish after the entity is removed. Lingering views award no XP.
+- Draw Skeleton Warriors as eight `InstancedMesh` parts (torso, head, limbs, sockets). Per-enemy walk/hit/death writes instance matrices. See ADR 0010.
+- Linger defeated instance slots for `VISUAL_DEATH_LINGER` so the death pose can finish after the entity is removed. Lingering slots award no XP.
 - Pool XP gem views by id. Scale follows gem XP; bob and spin are render-only. Magnet motion is simulation.
 - Show expanding Magic Pulse rings, a Lightning Sword slash, hit flashes, and a small configurable camera shake on player hurt.
 - Follow the interpolated player with a fixed isometric offset and exponential smoothing.
@@ -244,7 +248,7 @@ Not implemented. No server, no accounts.
 
 | Layer       | Tool                    | What exists now                                                 |
 | ----------- | ----------------------- | --------------------------------------------------------------- |
-| Unit        | Vitest                  | GameLoop, combat, XP aggregation/attract, pose, audio, HUD     |
+| Unit        | Vitest                  | GameLoop, combat, XP, pose, instance slots, audio, HUD         |
 | Integration | Vitest                  | World interpolation, game-over, level-up pause, restart        |
 | E2E         | Playwright              | Not installed                                                   |
 | Quality     | `tsc`, ESLint, Prettier | Configured                                                      |
@@ -262,7 +266,7 @@ Targets from the product docs, not measured results:
 
 The production bundle is dominated by Three.js (currently above Vite's 500 kB chunk warning). That is expected for an unsplit first scene and is not an optimization pass.
 
-`docs/PERFORMANCE.md` records the first measured pass. Production still caps at `MAX_ACTIVE_SKELETONS` (14). Development can raise that with `?stress=30` or `?stress=50` and show an overlay with `?perf`. That is not a 200-enemy claim.
+`docs/PERFORMANCE.md` records Phase 5 and Phase 6 passes. Production still caps at `MAX_ACTIVE_SKELETONS` (14). Development can raise that with `?stress=` (max 200), skip pauses with `?bench`, and show timings with `?perf`. Rendering 200 warriors in a dev tab is not a shipping encounter.
 
 ## 16. Resource Lifecycle
 
@@ -301,4 +305,4 @@ Cloudflare Pages deployment is still planned.
 
 ## 18. Next Follow-Up
 
-Phase 6 is the Siren King. Keep pose names stable so a GLB Bernardo can replace the procedural mesh without rewriting combat. Extra skeleton types wait until the boss slice is designed.
+Phase 7 is the Siren King. Keep pose names stable so a GLB Bernardo can replace the procedural mesh without rewriting combat. Extra skeleton types wait until the boss slice is designed.

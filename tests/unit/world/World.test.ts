@@ -111,6 +111,30 @@ describe('World', () => {
     expect(world.getPlayer().pendingLevelUps).toBe(0);
   });
 
+  it('keeps interpolation snapshots independent of later snapshot calls', () => {
+    const world = new World();
+    world.step(1, createInputIntent(1, 0));
+    const start = world.getSnapshot(0);
+    const end = world.getSnapshot(1);
+    expect(start.player.x).not.toBeCloseTo(end.player.x);
+  });
+
+  it('skips contact damage and level-up pauses in benchmark mode', () => {
+    const world = new World({
+      benchmark: true,
+      player: { ...createPlayerState(), health: PLAYER_CONTACT_DAMAGE },
+      enemies: [createSkeletonWarrior(1, 0.2, 0)],
+      gems: [createXpGem(2, 0, 0, xpRequiredForLevel(1))],
+    });
+
+    world.step(FIXED_TIMESTEP_SECONDS, IDLE_INTENT);
+
+    expect(world.getStatus()).toBe('playing');
+    expect(world.getPlayer().health).toBe(PLAYER_CONTACT_DAMAGE);
+    expect(world.getPlayer().pendingLevelUps).toBe(0);
+    expect(world.getOffers()).toHaveLength(0);
+  });
+
   it('resets progression, abilities, gems, and cooldowns on restart', () => {
     const world = new World({
       gems: [createXpGem(1, 0, 0, xpRequiredForLevel(1))],

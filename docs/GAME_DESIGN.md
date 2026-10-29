@@ -4,7 +4,7 @@ Bernardo vs. The Undead: Rise of the Siren King
 
 This document is the gameplay source of truth. It distinguishes **confirmed** requirements from **planned** ideas. Numeric combat values are not finalized; they will live in typed configuration once combat exists.
 
-**Status:** Confirmed design. Phase 5 is a polished combat-and-progression prototype: procedural character animation, synthesized SFX, and magnetized XP gems. The Siren King and final GLB models are not implemented yet.
+**Status:** Confirmed design. Phase 6 is a polished combat-and-progression prototype with instanced skeleton rendering. The Siren King and final GLB models are not implemented yet.
 
 ## 1. Premise
 

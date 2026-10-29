@@ -2,7 +2,7 @@
 
 Development is sequenced so each milestone is independently verifiable. A playable vertical slice is more important than broad infrastructure.
 
-**Current milestone:** Phase 5 complete. Phase 6 is next and must not start without explicit approval.
+**Current milestone:** Phase 6 complete. Phase 7 is next and must not start without explicit approval.
 
 Status values: `done`, `next`, `planned`.
 
@@ -16,9 +16,10 @@ Status values: `done`, `next`, `planned`.
 | M3  | Combat prototype          | Skeleton warriors, auto-attack, death, restart | done    |
 | M4  | Progression               | XP, level-up, one upgradeable ability          | done    |
 | M5  | Visual identity           | Final-style models, animation, audio           | done    |
-| M6  | Siren King                | Boss phases and victory                        | next    |
-| M7  | Polish and performance    | Measured optimization, settings, accessibility | planned |
-| M8  | Public release            | Deployment and portfolio presentation          | planned |
+| M6  | Horde rendering           | Instanced skeletons, measured draw-call cut    | done    |
+| M7  | Siren King                | Boss phases and victory                        | next    |
+| M8  | Polish                    | Settings, accessibility, remaining perf        | planned |
+| M9  | Public release            | Deployment and portfolio presentation          | planned |
 
 ## M0 — Engineering documentation
 
@@ -212,7 +213,40 @@ Status values: `done`, `next`, `planned`.
 
 **Dependencies:** M4. Original or licensed assets.
 
-## M6 — Siren King
+## M6 — Horde rendering
+
+**Goal:** Cut skeleton draw calls without dropping walk/hit/death poses, and measure the result without paused level-up screens.
+
+**Status:** Complete. Production enemy cap remains 14.
+
+**Scope:**
+
+- Repeatable `?perf` / `?stress` / `?bench` overlay (median, p95, sim vs render)
+- Instanced body-part rendering with per-enemy procedural animation
+- Instance slot reuse, death linger, restart cleanup
+- Compact previous-pose maps for interpolation
+- Stress presets 14 / 30 / 50 / 100 / 200 in development only
+
+**Out of scope:** Siren King, extra enemy types, custom bone shaders, spatial hashing, raising the production cap.
+
+**Deliverables:**
+
+- Instanced skeleton horde (ADR 0010)
+- Slot-pool and pose unit tests
+- `docs/PERFORMANCE.md` before/after table
+
+**Acceptance criteria:**
+
+- Draw calls at 50 living warriors drop by at least 50% versus the Phase 5 baseline.
+- Walking, hit, and death remain readable.
+- Restart does not leave ghost instances.
+- Production still caps at 14 living warriors.
+
+**Testing requirements:** Slot allocation/reuse tests; gameplay tests unchanged; browser bench samples at 14–200.
+
+**Dependencies:** M5.
+
+## M7 — Siren King
 
 **Goal:** A readable three-phase boss encounter with a victory sequence.
 
@@ -238,15 +272,15 @@ Status values: `done`, `next`, `planned`.
 
 **Testing requirements:** Unit tests for phases and summons; browser playtest of the encounter.
 
-**Dependencies:** M3 at minimum; M4–M5 preferred so the fight is not against placeholders only.
+**Dependencies:** M3 at minimum; M4–M6 preferred so the fight is not against placeholders only.
 
-## M7 — Polish and performance
+## M8 — Polish
 
 **Goal:** Measure, then optimize, and add production-quality extras.
 
 **Scope:**
 
-- Instancing, pooling, and spatial queries as measurements justify
+- Further instancing (gems, Bernardo) and spatial queries only as new measurements justify
 - Graphics settings
 - Local persistence if still desired
 - Accessibility (contrast, reduced motion where practical, remappable keys if practical)
@@ -268,7 +302,7 @@ Status values: `done`, `next`, `planned`.
 
 **Dependencies:** A crowd large enough to measure, typically M3+.
 
-## M8 — Public release
+## M9 — Public release
 
 **Goal:** Ship a playable browser build with portfolio-grade documentation.
 
@@ -287,7 +321,7 @@ Status values: `done`, `next`, `planned`.
 
 **Testing requirements:** CI green including E2E smoke tests.
 
-**Dependencies:** A fun vertical slice at least through M3; intended public version includes M4–M7 as available.
+**Dependencies:** A fun vertical slice at least through M3; intended public version includes M4–M8 as available.
 
 ## Explicit non-goals until reconsidered
 

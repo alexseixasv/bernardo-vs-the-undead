@@ -87,13 +87,14 @@ export interface WorldOptions {
   gems?: XpGem[];
   maxActiveSkeletons?: number;
   stressFill?: boolean;
+  benchmark?: boolean;
 }
 
 export class World {
   private random: RandomFn;
   private previousPlayer: PlayerState;
   private player: PlayerState;
-  private previousEnemies = new Map<number, EnemyState>();
+  private previousEnemies = new Map<number, { x: number; y: number; z: number }>();
   private enemies: EnemyState[] = [];
   private gems: XpGem[] = [];
   private spawn: SpawnState = createSpawnState();
@@ -104,9 +105,10 @@ export class World {
   private kills = 0;
   private elapsedSeconds = 0;
   private nextGemId = 1;
-  private previousGems = new Map<number, XpGem>();
+  private previousGems = new Map<number, { x: number; z: number }>();
   private readonly maxActiveSkeletons: number;
   private readonly stressFill: boolean;
+  private readonly benchmark: boolean;
 
   constructor(options: WorldOptions = {}) {
     this.random = options.random ?? mulberry32(20261029);
@@ -116,6 +118,7 @@ export class World {
     this.gems = (options.gems ?? []).map(cloneXpGem);
     this.maxActiveSkeletons = options.maxActiveSkeletons ?? MAX_ACTIVE_SKELETONS;
     this.stressFill = options.stressFill === true;
+    this.benchmark = options.benchmark === true;
     if (this.stressFill) {
       this.spawn = createSpawnState();
       this.spawn.cooldown = 0;
@@ -128,8 +131,10 @@ export class World {
     }
 
     this.previousPlayer = clonePlayerState(this.player);
-    this.previousEnemies = new Map(this.enemies.map((enemy) => [enemy.id, cloneEnemyState(enemy)]));
-    this.previousGems = new Map(this.gems.map((gem) => [gem.id, cloneXpGem(gem)]));
+    this.previousEnemies = new Map(
+      this.enemies.map((enemy) => [enemy.id, { x: enemy.x, y: enemy.y, z: enemy.z }]),
+    );
+    this.previousGems = new Map(this.gems.map((gem) => [gem.id, { x: gem.x, z: gem.z }]));
     this.elapsedSeconds += deltaSeconds;
 
     const stats = deriveCombatStats(this.player.abilities);
@@ -184,7 +189,9 @@ export class World {
     this.pulse = pulse.pulse ?? tickAttackPulse(this.pulse, deltaSeconds);
     this.slash = sword.slash ?? tickSwordSlash(this.slash, deltaSeconds);
 
-    this.player = applyContactDamage(this.player, enemies, deltaSeconds);
+    if (!this.benchmark) {
+      this.player = applyContactDamage(this.player, enemies, deltaSeconds);
+    }
 
     const dropped = dropGemsForDeaths(this.gems, deaths, this.nextGemId, XP_PER_GEM);
     this.nextGemId = dropped.nextId;
@@ -213,7 +220,11 @@ export class World {
     }
 
     if (this.player.pendingLevelUps > 0) {
-      this.beginLevelUp();
+      if (this.benchmark) {
+        this.player = { ...this.player, pendingLevelUps: 0 };
+      } else {
+        this.beginLevelUp();
+      }
     }
   }
 

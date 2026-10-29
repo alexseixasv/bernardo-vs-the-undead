@@ -10,7 +10,7 @@ import {
   WebGLRenderer,
 } from 'three';
 
-import { ATTACK_PULSE_DURATION, VISUAL_DEATH_LINGER } from '../config/combat';
+import { ATTACK_PULSE_DURATION } from '../config/combat';
 import { SWORD_SLASH_DURATION, XP_PER_GEM } from '../config/progression';
 import {
   CAMERA_FAR,
@@ -20,28 +20,23 @@ import {
   CAMERA_SHAKE_AMOUNT,
   PLAYER_LOOK_HEIGHT,
 } from '../config/world';
-import type { EnemySnapshot, GemSnapshot, WorldSnapshot } from '../world/World';
+import type { GemSnapshot, WorldSnapshot } from '../world/World';
 import { type Vec3, stepCameraFollow } from './cameraFollow';
-import { selectBernardoAnim, selectSkeletonAnim } from './characterPose';
+import { selectBernardoAnim } from './characterPose';
 import { type BernardoPlaceholder, createBernardoPlaceholder } from './createBernardoPlaceholder';
 import { type ForestArena, createForestArena } from './createForestArena';
 import {
-  type SkeletonAssets,
-  type SkeletonView,
-  createSkeletonAssets,
-} from './createSkeletonPlaceholder';
+  type InstancedSkeletonHorde,
+  createInstancedSkeletonHorde,
+} from './createInstancedSkeletonHorde';
 import { type XpGemAssets, createXpGemAssets } from './createXpGemPlaceholder';
 import { isWebGL2Available, WebGLInitError } from './webgl';
-
-interface LingeringSkeleton {
-  view: SkeletonView;
-  remaining: number;
-  snapshot: EnemySnapshot;
-}
 
 export interface RendererStats {
   calls: number;
   triangles: number;
+  geometries: number;
+  textures: number;
   enemies: number;
   gems: number;
 }
@@ -52,10 +47,8 @@ export class GameRenderer {
   private readonly camera: PerspectiveCamera;
   private readonly forest: ForestArena;
   private readonly bernardo: BernardoPlaceholder;
-  private readonly skeletons: SkeletonAssets;
+  private readonly skeletons: InstancedSkeletonHorde;
   private readonly gems: XpGemAssets;
-  private readonly skeletonViews = new Map<number, SkeletonView>();
-  private readonly lingeringSkeletons = new Map<number, LingeringSkeleton>();
   private readonly gemViews = new Map<number, ReturnType<XpGemAssets['createView']>>();
   private readonly pulse: Mesh;
   private readonly pulseOuter: Mesh;
@@ -115,7 +108,7 @@ export class GameRenderer {
 
     this.forest = createForestArena();
     this.bernardo = createBernardoPlaceholder();
-    this.skeletons = createSkeletonAssets();
+    this.skeletons = createInstancedSkeletonHorde(this.forest.scene);
     this.gems = createXpGemAssets();
     this.forest.scene.add(this.bernardo.group);
 
@@ -199,7 +192,7 @@ export class GameRenderer {
       deltaSeconds,
     );
 
-    this.syncSkeletons(snapshot.enemies, deltaSeconds);
+    this.skeletons.sync(snapshot.enemies, deltaSeconds);
     this.syncGems(snapshot.gems);
     this.syncPulse(snapshot);
     this.syncSlash(snapshot);
@@ -223,14 +216,15 @@ export class GameRenderer {
     return {
       calls: this.renderer.info.render.calls,
       triangles: this.renderer.info.render.triangles,
-      enemies: this.skeletonViews.size + this.lingeringSkeletons.size,
+      geometries: this.renderer.info.memory.geometries,
+      textures: this.renderer.info.memory.textures,
+      enemies: this.skeletons.getActiveCount(),
       gems: this.gemViews.size,
     };
   }
 
   resetForNewRun(): void {
-    this.clearSkeletons();
-    this.clearLingering();
+    this.skeletons.reset();
     this.clearGems();
     this.lookAt = { x: 0, y: PLAYER_LOOK_HEIGHT, z: 0 };
     this.fxTime = 0;
@@ -251,8 +245,7 @@ export class GameRenderer {
 
     this.disposed = true;
     window.removeEventListener('resize', this.handleResize);
-    this.clearSkeletons();
-    this.clearLingering();
+    this.skeletons.dispose();
     this.clearGems();
     this.forest.scene.remove(this.bernardo.group);
     this.forest.scene.remove(this.pulse, this.pulseOuter, this.impact, this.slash, this.slashArc);
@@ -267,79 +260,9 @@ export class GameRenderer {
     this.slashMaterial.dispose();
     this.slashArcMaterial.dispose();
     this.bernardo.dispose();
-    this.skeletons.dispose();
     this.gems.dispose();
     this.forest.dispose();
     this.renderer.dispose();
-  }
-
-  private syncSkeletons(enemies: readonly EnemySnapshot[], deltaSeconds: number): void {
-    const seen = new Set<number>();
-
-    for (const enemy of enemies) {
-      seen.add(enemy.id);
-      this.lingeringSkeletons.delete(enemy.id);
-      let view = this.skeletonViews.get(enemy.id);
-      if (view === undefined) {
-        view = this.skeletons.createView();
-        this.forest.scene.add(view.group);
-        this.skeletonViews.set(enemy.id, view);
-      }
-
-      this.poseSkeleton(view, enemy, deltaSeconds);
-    }
-
-    for (const [id, view] of this.skeletonViews) {
-      if (seen.has(id)) {
-        continue;
-      }
-      this.skeletonViews.delete(id);
-      this.lingeringSkeletons.set(id, {
-        view,
-        remaining: VISUAL_DEATH_LINGER,
-        snapshot: {
-          id,
-          x: view.group.position.x,
-          y: view.group.position.y,
-          z: view.group.position.z,
-          facingYaw: view.group.rotation.y,
-          lifecycle: 'dead',
-          hitAmount: 0,
-          deathAmount: 1,
-          moving: false,
-          contacting: false,
-        },
-      });
-    }
-
-    for (const [id, lingering] of this.lingeringSkeletons) {
-      lingering.remaining -= deltaSeconds;
-      if (lingering.remaining <= 0) {
-        this.forest.scene.remove(lingering.view.group);
-        this.lingeringSkeletons.delete(id);
-        continue;
-      }
-      const amount = 1 - lingering.remaining / VISUAL_DEATH_LINGER;
-      lingering.snapshot.deathAmount = Math.min(1, amount);
-      this.poseSkeleton(lingering.view, lingering.snapshot, deltaSeconds);
-    }
-  }
-
-  private poseSkeleton(view: SkeletonView, enemy: EnemySnapshot, deltaSeconds: number): void {
-    view.group.position.set(enemy.x, enemy.y, enemy.z);
-    view.group.rotation.y = enemy.facingYaw;
-    view.sync(
-      selectSkeletonAnim({
-        moving: enemy.moving,
-        contacting: enemy.contacting,
-        hitAmount: enemy.hitAmount,
-        lifecycle: enemy.lifecycle,
-      }),
-      enemy.hitAmount,
-      enemy.deathAmount,
-      deltaSeconds,
-      enemy.id * 1.7,
-    );
   }
 
   private syncGems(gems: readonly GemSnapshot[]): void {
@@ -417,20 +340,6 @@ export class GameRenderer {
     this.slashArc.rotation.set(-0.15, slash.yaw + 0.35, 0.9);
     this.slashMaterial.opacity = 0.95 * (1 - progress);
     this.slashArcMaterial.opacity = 0.7 * (1 - progress);
-  }
-
-  private clearSkeletons(): void {
-    for (const view of this.skeletonViews.values()) {
-      this.forest.scene.remove(view.group);
-    }
-    this.skeletonViews.clear();
-  }
-
-  private clearLingering(): void {
-    for (const lingering of this.lingeringSkeletons.values()) {
-      this.forest.scene.remove(lingering.view.group);
-    }
-    this.lingeringSkeletons.clear();
   }
 
   private clearGems(): void {

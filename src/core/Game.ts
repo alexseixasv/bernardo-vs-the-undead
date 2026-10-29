@@ -1,6 +1,6 @@
 import { AudioSystem } from '../audio/AudioSystem';
 import { detectSfx } from '../audio/detectSfx';
-import { PerformanceOverlay } from '../debug/PerformanceOverlay';
+import { PerformanceOverlay, readJsHeapMb } from '../debug/PerformanceOverlay';
 import { readDevFlags } from '../debug/devFlags';
 import { KeyboardInput } from '../input/KeyboardInput';
 import { GameRenderer } from '../rendering/GameRenderer';
@@ -18,6 +18,7 @@ export class Game {
   private readonly perf: PerformanceOverlay | null;
   private lastRenderSeconds: number | null = null;
   private lastSnapshot: WorldSnapshot | null = null;
+  private lastSimMs = 0;
   private disposed = false;
   private readonly unlockAudio = (): void => {
     void this.audio.unlock();
@@ -25,9 +26,10 @@ export class Game {
 
   constructor(canvas: HTMLCanvasElement) {
     const flags = readDevFlags();
-    this.world = new World(
-      flags.stress === null ? {} : { maxActiveSkeletons: flags.stress, stressFill: true },
-    );
+    this.world = new World({
+      ...(flags.stress === null ? {} : { maxActiveSkeletons: flags.stress, stressFill: true }),
+      ...(flags.bench ? { benchmark: true } : {}),
+    });
     this.input = new KeyboardInput();
     this.renderer = new GameRenderer(canvas);
     this.audio = new AudioSystem();
@@ -50,7 +52,9 @@ export class Game {
     window.addEventListener('keydown', this.unlockAudio);
     this.loop = new GameLoop({
       update: (deltaSeconds) => {
+        const simStarted = performance.now();
         this.world.step(deltaSeconds, this.input.getIntent());
+        this.lastSimMs += performance.now() - simStarted;
         const status = this.world.getStatus();
         if (status === 'gameOver' || status === 'levelUp') {
           this.loop.pause();
@@ -59,13 +63,21 @@ export class Game {
       render: (interpolationAlpha) => {
         const snapshot = this.world.getSnapshot(interpolationAlpha);
         const delta = this.consumeRenderDelta();
+        const renderStarted = performance.now();
         this.renderer.render(snapshot, delta);
+        const renderMs = performance.now() - renderStarted;
         this.hud.sync(snapshot);
         this.playObservedSfx(snapshot);
         this.lastSnapshot = snapshot;
         if (this.perf !== null) {
-          this.perf.update(delta, this.renderer.getStats());
+          this.perf.update(delta, {
+            ...this.renderer.getStats(),
+            simMs: this.lastSimMs,
+            renderMs,
+            heapMb: readJsHeapMb(),
+          });
         }
+        this.lastSimMs = 0;
       },
     });
   }
@@ -97,6 +109,7 @@ export class Game {
     this.renderer.resetForNewRun();
     this.lastRenderSeconds = null;
     this.lastSnapshot = null;
+    this.lastSimMs = 0;
     this.hud.sync(this.world.getSnapshot(1));
 
     if (this.loop.getStatus() === 'paused') {
