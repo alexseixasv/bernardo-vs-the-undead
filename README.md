@@ -8,7 +8,7 @@ Fight endless hordes of skeletons, unlock powerful abilities, survive an increas
 
 Inspired by the fast-paced progression and survival mechanics of *Vampire Survivors*, Bernardo vs. The Undead combines accessible gameplay, stylized 3D graphics, and challenging encounters in a single-player browser experience.
 
-> **Project Status:** 🚧 Pre-production — Architecture and game design in progress.
+> **Project Status:** Phase 0 complete — engineering documentation is in place. Application code has not been initialized.
 
 ---
 
@@ -24,7 +24,7 @@ To escape, Bernardo must become stronger, master new abilities, and defeat the c
 
 ### Core Gameplay
 
-- **3D Isometric Perspective:** Explore a stylized forest from a dynamic isometric camera.
+- **3D Isometric Perspective:** Explore a stylized forest from an isometric follow camera.
 - **Survival Combat:** Face increasingly difficult waves of skeleton enemies.
 - **Automatic Attacks:** Focus on movement, positioning, and strategic decisions.
 - **Character Progression:** Collect experience and unlock powerful upgrades.
@@ -33,6 +33,8 @@ To escape, Bernardo must become stronger, master new abilities, and defeat the c
 - **Boss Encounter:** Survive long enough to challenge the Siren King.
 - **Replayability:** Experiment with different abilities and strategies across multiple runs.
 - **Browser-Based:** Play directly in a modern browser without installing a game client.
+
+The detailed gameplay specification lives in [`docs/GAME_DESIGN.md`](docs/GAME_DESIGN.md). That document marks confirmed requirements separately from later ideas.
 
 ### Planned Game Loop
 
@@ -94,6 +96,8 @@ The forest is populated by different types of skeletons, each introducing unique
 | Skeleton Mage | Casts magical projectiles | High |
 | Skeleton Brute | Slow movement, high health and damage | High |
 | Elite Skeleton | Enhanced attributes and special abilities | Very High |
+
+The first combat prototype uses Skeleton Warriors only. Additional types are introduced after that slice is playable.
 
 ### Enemy AI
 
@@ -197,16 +201,16 @@ The project prioritizes modern web technologies, modular architecture, performan
 | Language | TypeScript |
 | 3D Rendering | Three.js |
 | Development & Build | Vite |
-| Physics | Rapier |
-| Audio | Howler.js |
+| Physics | Simplified gameplay collision first; Rapier only if required |
+| Audio | Howler.js, when audio is introduced |
 | UI | HTML5 / CSS3 |
 | Unit Testing | Vitest |
-| End-to-End Testing | Playwright |
+| End-to-End Testing | Playwright, when a playable scene exists |
 | Code Quality | ESLint / Prettier |
 | Automation | GitHub Actions |
 | Deployment | Cloudflare Pages |
 | 3D Assets | Blender / GLTF / GLB |
-| Local Persistence | IndexedDB |
+| Local Persistence | IndexedDB, if local saves are added |
 
 ### Why Three.js?
 
@@ -233,6 +237,8 @@ A backend may be introduced later if features such as online leaderboards or clo
 ## 🏗️ Architecture
 
 The project will follow a modular architecture separating gameplay logic, rendering, input handling, audio, and user interface components.
+
+The current architecture plan, including what is not yet implemented, is documented in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). Architectural decisions are recorded in [`docs/decisions/`](docs/decisions/).
 
 ### Architectural Principles
 
@@ -461,22 +467,21 @@ The testing strategy will prioritize deterministic gameplay logic over fragile v
 
 ## 🗺️ Development Roadmap
 
-The game will be developed incrementally through independently testable milestones.
+The game will be developed incrementally through independently testable milestones. Detailed acceptance criteria live in [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 ### Phase 0 — Pre-production
 
-- [ ] Finalize the Game Design Document.
-- [ ] Define the initial playable scope.
-- [ ] Establish architectural guidelines.
-- [ ] Define the visual direction.
-- [ ] Prepare initial character concepts.
+- [x] Finalize the Game Design Document.
+- [x] Define the initial playable scope.
+- [x] Establish architectural guidelines.
+- [x] Define the visual direction.
+- [x] Document character design requirements.
 
 ### Phase 1 — Technical Foundation
 
 - [ ] Initialize Vite and TypeScript.
 - [ ] Configure Three.js.
-- [ ] Configure Rapier.
-- [ ] Implement the game loop.
+- [ ] Implement a fixed-timestep game loop.
 - [ ] Configure testing and linting.
 - [ ] Set up GitHub Actions.
 
@@ -526,14 +531,14 @@ The game will be developed incrementally through independently testable mileston
 - [ ] Optimize enemy rendering.
 - [ ] Improve collision performance.
 - [ ] Add graphics settings.
-- [ ] Implement local progression persistence.
+- [ ] Implement optional local persistence.
 - [ ] Add accessibility improvements.
 - [ ] Improve loading performance.
 
 ### Phase 8 — Public Release
 
 - [ ] Complete automated testing.
-- [ ] Document architecture decisions.
+- [ ] Review architecture documentation for the public build.
 - [ ] Add gameplay screenshots and videos.
 - [ ] Configure production deployment.
 - [ ] Publish the playable browser version.
@@ -550,7 +555,7 @@ The objective is not simply to generate code, but to maintain a structured and r
 
 Each major feature should follow this cycle:
 
-**Research → Plan → Implement → Test → Review → Document**
+**Research → Plan → Implement → Test → Review → Document → Learn**
 
 ### Development Guidelines
 
@@ -563,7 +568,7 @@ Each major feature should follow this cycle:
 - Preserve working functionality during refactoring.
 - Capture lessons learned to improve future development.
 
-Project-specific AI development instructions will be maintained in `AGENTS.md`.
+Project-specific AI development instructions are maintained in [`AGENTS.md`](AGENTS.md).
 
 Architectural decisions will be documented in `docs/decisions/`.
 
@@ -580,7 +585,7 @@ The following documentation will be maintained as the project evolves:
 | `docs/GAME_DESIGN.md` | Gameplay mechanics and balancing |
 | `docs/ARCHITECTURE.md` | Technical architecture |
 | `docs/ROADMAP.md` | Development milestones |
-| `docs/PERFORMANCE.md` | Performance strategy and benchmarks |
+| `docs/PERFORMANCE.md` | Performance strategy and benchmarks, created when measurements exist |
 | `docs/decisions/` | Architecture Decision Records |
 
 ---
