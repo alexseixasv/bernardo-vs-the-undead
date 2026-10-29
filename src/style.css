@@ -9,14 +9,20 @@ body,
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: #0b1220;
-  font-family: system-ui, sans-serif;
+  background: #1c2d44;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+}
+
+#app {
+  position: relative;
 }
 
 #game-canvas {
   display: block;
   width: 100%;
   height: 100%;
+  position: relative;
+  z-index: 0;
 }
 
 .boot-error {
@@ -36,10 +42,58 @@ body,
   display: flex;
 }
 
+.hud {
+  position: absolute;
+  top: 1.1rem;
+  left: 1.1rem;
+  right: 1.1rem;
+  z-index: 1;
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  pointer-events: none;
+  color: #f7f1e6;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
+}
+
+.hud-health {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.hud-label,
+.hud-stats {
+  font-size: 0.92rem;
+  letter-spacing: 0.02em;
+}
+
+.hud-stats {
+  display: flex;
+  gap: 1rem;
+  white-space: nowrap;
+}
+
+.health-bar {
+  width: min(16rem, 36vw);
+  height: 0.7rem;
+  overflow: hidden;
+  border: 1px solid rgba(247, 241, 230, 0.45);
+  background: rgba(12, 18, 28, 0.55);
+}
+
+.health-fill {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, #d94a4a, #f0c14a);
+}
+
 .controls-hint {
   position: absolute;
   left: 1.25rem;
   bottom: 1.25rem;
+  z-index: 1;
   margin: 0;
   color: #f4efe8;
   font-size: 0.95rem;
@@ -47,4 +101,60 @@ body,
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.75);
   pointer-events: none;
   user-select: none;
+}
+
+.game-over {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(8, 12, 20, 0.62);
+  pointer-events: auto;
+}
+
+.game-over:not([hidden]) {
+  display: flex;
+}
+
+.game-over-card {
+  min-width: min(22rem, 86vw);
+  padding: 1.8rem 1.6rem;
+  border: 1px solid rgba(245, 213, 106, 0.35);
+  background: #162235;
+  color: #f7f1e6;
+  text-align: center;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+}
+
+.game-over-card h1 {
+  margin: 0 0 0.6rem;
+  font-size: 2rem;
+  color: #ffe14a;
+}
+
+.game-over-card p {
+  margin: 0 0 1.2rem;
+}
+
+.game-over-card button {
+  padding: 0.55rem 1.3rem;
+  border: 0;
+  background: #ffe14a;
+  color: #1a1408;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.game-over-card button:hover {
+  background: #fff0a3;
+}
+
+@media (max-width: 720px) {
+  .hud {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }

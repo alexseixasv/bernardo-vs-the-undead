@@ -3,6 +3,7 @@ import {
   Group,
   Mesh,
   MeshStandardMaterial,
+  PointLight,
   SphereGeometry,
   type BufferGeometry,
   type Material,
@@ -10,6 +11,7 @@ import {
 
 export interface BernardoPlaceholder {
   group: Group;
+  fillLight: PointLight;
   dispose(): void;
 }
 
@@ -17,10 +19,20 @@ export function createBernardoPlaceholder(): BernardoPlaceholder {
   const group = new Group();
   group.name = 'bernardo-placeholder';
 
-  const skin = new MeshStandardMaterial({ color: 0xf1c27d, roughness: 0.55, metalness: 0.02 });
+  const skin = new MeshStandardMaterial({ color: 0xffd39a, roughness: 0.5, metalness: 0.02 });
   const hair = new MeshStandardMaterial({ color: 0x2a1c16, roughness: 0.85, metalness: 0 });
-  const shirt = new MeshStandardMaterial({ color: 0xf5d56a, roughness: 0.5, metalness: 0.04 });
-  const shorts = new MeshStandardMaterial({ color: 0x2f5ea8, roughness: 0.55, metalness: 0.04 });
+  const shirt = new MeshStandardMaterial({
+    color: 0xffe14a,
+    emissive: 0x6a4e00,
+    roughness: 0.42,
+    metalness: 0.04,
+  });
+  const shorts = new MeshStandardMaterial({
+    color: 0x3d7dff,
+    emissive: 0x10285a,
+    roughness: 0.48,
+    metalness: 0.04,
+  });
   const shoe = new MeshStandardMaterial({ color: 0x3a2a22, roughness: 0.7, metalness: 0 });
   const eye = new MeshStandardMaterial({ color: 0x1a1410, roughness: 0.4, metalness: 0 });
 
@@ -61,8 +73,13 @@ export function createBernardoPlaceholder(): BernardoPlaceholder {
   add(new SphereGeometry(0.045, 8, 8), eye, -0.09, 1.2, 0.22);
   add(new SphereGeometry(0.045, 8, 8), eye, 0.09, 1.2, 0.22);
 
+  const fillLight = new PointLight(0xfff3c8, 2.4, 8, 2);
+  fillLight.position.set(0, 1.25, 0.55);
+  group.add(fillLight);
+
   return {
     group,
+    fillLight,
     dispose(): void {
       for (const geometry of geometries) {
         geometry.dispose();

@@ -53,13 +53,9 @@ describe('movePlayer', () => {
   it('does not depend on rendering objects', () => {
     const player = movePlayer(createPlayerState(), createInputIntent(0, -1), 0.25, CONFIG);
 
-    expect(player).toEqual({
-      x: player.x,
-      y: 0,
-      z: player.z,
-      facingYaw: player.facingYaw,
-      radius: PLAYER_RADIUS,
-    });
+    expect(player.y).toBe(0);
+    expect(player.radius).toBe(PLAYER_RADIUS);
+    expect(player.health).toBe(player.maxHealth);
   });
 });
 
@@ -68,11 +64,9 @@ describe('clampToArena', () => {
     const limit = ARENA_HALF_EXTENT - PLAYER_RADIUS;
     const clamped = clampToArena(
       {
+        ...createPlayerState(),
         x: 100,
-        y: 0,
         z: -80,
-        facingYaw: 0,
-        radius: PLAYER_RADIUS,
       },
       ARENA_HALF_EXTENT,
     );
@@ -83,11 +77,8 @@ describe('clampToArena', () => {
 
   it('stops movement at the boundary instead of leaving the arena', () => {
     const againstEdge = {
+      ...createPlayerState(),
       x: ARENA_HALF_EXTENT - PLAYER_RADIUS,
-      y: 0,
-      z: 0,
-      facingYaw: 0,
-      radius: PLAYER_RADIUS,
     };
 
     const next = movePlayer(againstEdge, createInputIntent(1, 0), 1, CONFIG);

@@ -8,7 +8,27 @@
   <body>
     <div id="app">
       <canvas id="game-canvas"></canvas>
+      <div id="hud" class="hud">
+        <div class="hud-health">
+          <span class="hud-label">Health</span>
+          <div class="health-bar" aria-hidden="true">
+            <div id="health-fill" class="health-fill"></div>
+          </div>
+          <span id="health-text">100</span>
+        </div>
+        <div class="hud-stats">
+          <span>Defeated <strong id="kill-count">0</strong></span>
+          <span>Time <strong id="run-time">0:00</strong></span>
+        </div>
+      </div>
       <p id="controls-hint" class="controls-hint">Move: WASD / Arrow Keys</p>
+      <div id="game-over" class="game-over" hidden>
+        <div class="game-over-card">
+          <h1>Game Over</h1>
+          <p>Skeletons defeated: <strong id="game-over-kills">0</strong></p>
+          <button id="restart-button" type="button">Restart</button>
+        </div>
+      </div>
       <div id="boot-error" class="boot-error" hidden role="alert"></div>
     </div>
     <script type="module" src="/src/main.ts"></script>

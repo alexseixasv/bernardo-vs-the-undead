@@ -4,7 +4,7 @@ Bernardo vs. The Undead: Rise of the Siren King
 
 This document is the gameplay source of truth. It distinguishes **confirmed** requirements from **planned** ideas. Numeric combat values are not finalized; they will live in typed configuration once combat exists.
 
-**Status:** Confirmed design. Phase 2 is a movement prototype in a procedural forest. Combat is not implemented yet.
+**Status:** Confirmed design. Phase 3 is a playable combat prototype against Skeleton Warriors. Experience and abilities are not implemented yet.
 
 ## 1. Premise
 
@@ -49,7 +49,7 @@ A complete run is an **initial target of 10–15 minutes**, subject to playtesti
 
 ## 5. Initial Playable Scope
 
-The first enjoyable vertical slice (end of Phase 3) is confirmed as:
+The first enjoyable vertical slice (Phase 3) is implemented as:
 
 - A bounded forest arena with an isometric follow camera.
 - Bernardo represented by a recognizable procedural placeholder.
@@ -136,14 +136,14 @@ The world is a gameplay arena, not an open-world exploration game.
 
 All regular enemies are skeletons. **Do not introduce zombies.**
 
-| Enemy            | Behavior                                  | Threat    | Status                           |
-| ---------------- | ----------------------------------------- | --------- | -------------------------------- |
-| Skeleton Warrior | Approaches and attacks at close range     | Low       | Confirmed for first combat slice |
-| Skeleton Runner  | Faster pursuit                            | Medium    | Planned                          |
-| Skeleton Archer  | Ranged attacks                            | Medium    | Planned                          |
-| Skeleton Mage    | Magical projectiles                       | High      | Planned                          |
-| Skeleton Brute   | Slow, high health and damage              | High      | Planned                          |
-| Elite Skeleton   | Enhanced attributes and special abilities | Very High | Planned                          |
+| Enemy            | Behavior                                  | Threat    | Status      |
+| ---------------- | ----------------------------------------- | --------- | ----------- |
+| Skeleton Warrior | Approaches and attacks at close range     | Low       | Implemented |
+| Skeleton Runner  | Faster pursuit                            | Medium    | Planned     |
+| Skeleton Archer  | Ranged attacks                            | Medium    | Planned     |
+| Skeleton Mage    | Magical projectiles                       | High      | Planned     |
+| Skeleton Brute   | Slow, high health and damage              | High      | Planned     |
+| Elite Skeleton   | Enhanced attributes and special abilities | Very High | Planned     |
 
 ### Confirmed AI approach
 
@@ -180,7 +180,15 @@ Planned states for a warrior: spawn → pursue → attack → stagger/hit → di
 
 One nearby automatic attack against Skeleton Warriors is enough. Additional attack types wait until that loop is fun.
 
-Balance numbers are **not confirmed**. They will be introduced as typed configuration during Phase 3 and tuned through playtests.
+Phase 3 combat lives in `src/config/combat.ts` and is still a first-pass balance, not a final tune.
+
+Implemented now:
+
+- Automatic short-range magical pulse.
+- Nearest living target in range; ties use the lower enemy id.
+- Skeleton Warrior contact damage with a player invulnerability window.
+- One contact hit is applied per window, even if several skeletons overlap.
+- Game over at zero health, with a kill count and in-session restart.
 
 ## 11. Progression
 

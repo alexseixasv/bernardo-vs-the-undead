@@ -32,20 +32,20 @@ interface InstanceTransform {
 
 export function createForestArena(): ForestArena {
   const scene = new Scene();
-  scene.background = new Color(0x0b1220);
-  scene.fog = new Fog(0x0b1220, 22, 62);
+  scene.background = new Color(0x1c2d44);
+  scene.fog = new Fog(0x243850, 30, 76);
 
-  const ambient = new AmbientLight(0x9aabc8, 0.28);
-  const hemisphere = new HemisphereLight(0x8aa0c8, 0x1a2b20, 0.45);
-  const moon = new DirectionalLight(0xe8f0ff, 1.05);
-  moon.position.set(12, 18, 8);
+  const ambient = new AmbientLight(0xd5e2f5, 0.62);
+  const hemisphere = new HemisphereLight(0xc3d6f0, 0x3a5a44, 0.78);
+  const moon = new DirectionalLight(0xfff6de, 1.35);
+  moon.position.set(10, 20, 9);
   scene.add(ambient, hemisphere, moon);
 
   const resources: Array<{ dispose(): void }> = [];
   const dummy = new Object3D();
 
-  const playableGround = createGround(ARENA_HALF_EXTENT * 2, 0x2f4a34);
-  const outerGround = createGround(ARENA_HALF_EXTENT * 3.4, 0x1c3324);
+  const playableGround = createGround(ARENA_HALF_EXTENT * 2, 0x4c8758);
+  const outerGround = createGround(ARENA_HALF_EXTENT * 3.4, 0x326344);
   outerGround.mesh.position.y = -0.02;
   scene.add(outerGround.mesh, playableGround.mesh);
   resources.push(outerGround, playableGround);
@@ -64,7 +64,7 @@ export function createForestArena(): ForestArena {
   );
   const canopy = createInstancedMesh(
     new ConeGeometry(0.7, 1.8, 7),
-    new MeshStandardMaterial({ color: 0x1f4d36, roughness: 0.78, metalness: 0.02 }),
+    new MeshStandardMaterial({ color: 0x3f9a58, roughness: 0.72, metalness: 0.02 }),
     trees.map((tree) => ({
       position: new Vector3(tree.x, 1.45 * tree.scale, tree.z),
       quaternion: new Quaternion(),
@@ -80,7 +80,7 @@ export function createForestArena(): ForestArena {
   const rocks = layoutRocks(rockRng);
   const rock = createInstancedMesh(
     new SphereGeometry(0.28, 6, 5),
-    new MeshStandardMaterial({ color: 0x6a6f68, roughness: 0.95, metalness: 0.04 }),
+    new MeshStandardMaterial({ color: 0x9aa195, roughness: 0.92, metalness: 0.04 }),
     rocks,
     dummy,
   );
@@ -91,7 +91,7 @@ export function createForestArena(): ForestArena {
   const grass = layoutGrass(grassRng);
   const tuft = createInstancedMesh(
     new ConeGeometry(0.12, 0.28, 5),
-    new MeshStandardMaterial({ color: 0x3f6a3c, roughness: 0.86, metalness: 0 }),
+    new MeshStandardMaterial({ color: 0x63a85a, roughness: 0.82, metalness: 0 }),
     grass,
     dummy,
   );
@@ -178,7 +178,7 @@ function layoutTrees(
   random: () => number,
 ): Array<{ x: number; z: number; scale: number; canopyColor: number }> {
   const trees: Array<{ x: number; z: number; scale: number; canopyColor: number }> = [];
-  const colors = [0x1f4d36, 0x245c3c, 0x163828, 0x2a6340];
+  const colors = [0x3f9a58, 0x4eab66, 0x2f7a46, 0x58b56f];
   const ringCount = 36;
   const innerCount = 10;
 
@@ -189,7 +189,7 @@ function layoutTrees(
       x: Math.cos(angle) * radius,
       z: Math.sin(angle) * radius,
       scale: 0.85 + random() * 0.55,
-      canopyColor: colors[index % colors.length] ?? 0x1f4d36,
+      canopyColor: colors[index % colors.length] ?? 0x3f9a58,
     });
   }
 

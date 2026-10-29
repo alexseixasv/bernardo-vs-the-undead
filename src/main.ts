@@ -13,6 +13,11 @@ function showBootError(message: string): void {
     hint.hidden = true;
   }
 
+  const hud = document.getElementById('hud');
+  if (hud) {
+    hud.hidden = true;
+  }
+
   const errorElement = document.getElementById('boot-error');
   if (!(errorElement instanceof HTMLElement)) {
     return;

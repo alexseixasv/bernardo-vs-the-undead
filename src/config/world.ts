@@ -5,13 +5,13 @@ export const PLAYER_LOOK_HEIGHT = 0.85;
 export const ARENA_HALF_EXTENT = 16;
 
 export const CAMERA_OFFSET = {
-  x: 16,
-  y: 16,
-  z: 16,
+  x: 18,
+  y: 17,
+  z: 18,
 } as const;
 
 export const CAMERA_FOLLOW_SHARPNESS = 10;
-export const CAMERA_FOV = 35;
+export const CAMERA_FOV = 38;
 export const CAMERA_NEAR = 0.1;
 export const CAMERA_FAR = 120;
 

@@ -8,7 +8,7 @@ Related decisions: `docs/decisions/`.
 
 ## 1. Current Runtime Reality
 
-Phase 2 is implemented: a testable movement prototype in a procedural forest, with keyboard intent, arena bounds, and an isometric follow camera.
+Phase 3 is implemented: a playable combat prototype with Skeleton Warriors, automatic attacks, health, HUD, and restart.
 
 | Item                                     | Status          |
 | ---------------------------------------- | --------------- |
@@ -20,7 +20,8 @@ Phase 2 is implemented: a testable movement prototype in a procedural forest, wi
 | Isometric follow camera                  | Implemented     |
 | WebGL2 failure UI                        | Implemented     |
 | Vitest, ESLint, Prettier, GitHub Actions | Implemented     |
-| Combat, enemies, abilities, audio        | Not implemented |
+| Combat, spawn, HUD, restart              | Implemented     |
+| Abilities, XP, audio, boss               | Not implemented |
 
 Do not create empty folders to match a future tree. Add modules when a milestone needs them.
 
@@ -43,20 +44,27 @@ src/
     Game.ts                            Session: owns loop, world, input, renderer
     GameLoop.ts                        Fixed-timestep loop
   config/world.ts                      Speed, arena bounds, camera, isometric basis
+  config/combat.ts                     Health, attack, spawn, and cooldown values
   entities/player.ts                   Player simulation state
+  entities/enemy.ts                    Skeleton Warrior simulation state
   input/
     InputIntent.ts                     Screen-space movement axes
     isometric.ts                       Screen → XZ mapping
     keyboardState.ts                   Pure keyboard reducer
     KeyboardInput.ts                   DOM listeners
   systems/MovementSystem.ts            Speed, facing, arena clamp
-  world/World.ts                       Previous/current player snapshots
+  systems/SpawnSystem.ts               Seedable warrior spawning
+  systems/PursuitSystem.ts             Direct XZ chase
+  systems/CombatSystem.ts              Targeting, damage, contact hits
+  world/World.ts                       Run simulation and interpolated snapshots
   rendering/
-    GameRenderer.ts                    WebGLRenderer, resize, compose views
+    GameRenderer.ts                    WebGLRenderer, views, VFX, dispose
     createForestArena.ts               Procedural forest
     createBernardoPlaceholder.ts       Stylized placeholder mesh
+    createSkeletonPlaceholder.ts       Shared-geometry warrior views
     cameraFollow.ts                    Smooth isometric follow
     webgl.ts                           WebGL2 detection
+  ui/Hud.ts                            Health, kills, timer, game over
   style.css
 ```
 
@@ -65,23 +73,22 @@ Intended later, still absent:
 ```text
 src/
   types/
-  systems/                             Combat, spawn, progression
-  entities/                            Enemies, bosses, projectiles
+  systems/                             Progression
+  entities/                            Bosses, projectiles
   abilities/
   audio/
-  ui/                                  Full HUD
 ```
 
 | Area           | Responsibility                                         | Status                 |
 | -------------- | ------------------------------------------------------ | ---------------------- |
 | `core`         | Session lifecycle, fixed-timestep loop, pause, dispose | Implemented            |
 | `rendering`    | Forest, placeholder Bernardo, follow camera, dispose   | Implemented            |
-| `systems`      | Movement and arena bounds                              | Implemented            |
-| `entities`     | Player data                                            | Implemented            |
+| `systems`      | Movement, spawn, pursuit, combat                       | Implemented            |
+| `entities`     | Player and Skeleton Warrior data                       | Implemented            |
 | `input`        | Keyboard → `InputIntent`                               | Implemented            |
 | `config`       | Movement, camera, and arena values                     | Implemented            |
 | `audio`        | Howler adapter                                         | Planned, Phase 5       |
-| `ui`           | Controls hint only                                     | Implemented (minimal)  |
+| `ui`           | Health, kills, timer, game-over overlay                | Implemented            |
 | Physics engine | Rapier, only if simplified collision is insufficient   | Deferred; see ADR 0005 |
 
 ## 4. Runtime Lifecycle
@@ -97,11 +104,10 @@ Implemented browser lifecycle:
 Each frame:
 
 1. `GameLoop` accumulates elapsed time.
-2. While enough time remains, `World.step(1 / 60, input.getIntent())` runs.
-3. `render(interpolationAlpha)` draws the interpolated player and follow camera.
-4. Pause skips simulation and keeps rendering.
-
-There is no combat state machine yet.
+2. While enough time remains, `World.step(1 / 60, input.getIntent())` runs spawn, movement, pursuit, attacks, and contact damage.
+3. `render(interpolationAlpha)` draws interpolated actors, attack pulse, and HUD.
+4. On game over the loop pauses simulation, keeps rendering, and shows the overlay.
+5. Restart resets simulation and enemy views without creating a second animation loop.
 
 Planned later session states:
 
@@ -126,22 +132,22 @@ This split is recorded in `docs/decisions/0003-simulation-render-separation.md`.
 
 ## 6. State Ownership
 
-| State                           | Owner           | Notes                                         |
-| ------------------------------- | --------------- | --------------------------------------------- |
-| Player position, facing, radius | `World`         | Source of truth; interpolated only for render |
-| Input intent                    | `KeyboardInput` | Screen axes; cleared on focus loss            |
-| Loop status                     | `GameLoop`      | `idle`, `running`, `paused`, `disposed`       |
-| Meshes, materials, camera       | `GameRenderer`  | Views of simulation state                     |
-| Movement / camera tunables      | `src/config/`   | Typed constants                               |
-| Enemy / combat state            | —               | Not implemented                               |
+| State                              | Owner           | Notes                                         |
+| ---------------------------------- | --------------- | --------------------------------------------- |
+| Player position, health, cooldowns | `World`         | Source of truth; interpolated only for render |
+| Enemy warriors                     | `World`         | Plain data with numeric ids                   |
+| Input intent                       | `KeyboardInput` | Screen axes; cleared on focus loss            |
+| Loop status                        | `GameLoop`      | `idle`, `running`, `paused`, `disposed`       |
+| Meshes, materials, camera          | `GameRenderer`  | Views keyed by enemy id                       |
+| Combat tunables                    | `src/config/`   | Typed constants                               |
 
 Do not store authoritative gameplay state on `Object3D.userData`.
 
 ## 7. Entity Management
 
-The player is a plain `PlayerState` (`x`, `y`, `z`, `facingYaw`, `radius`). Rendering copies that snapshot onto a placeholder group. Mesh internals are not gameplay.
+The player is a plain `PlayerState`. Skeleton Warriors are plain `EnemyState` records. The renderer keeps a map of visual groups keyed by enemy id, using shared geometries and materials.
 
-Planned next: Skeleton Warrior and other combat entities.
+Planned next: experience pickups and ability choices. Extra skeleton types wait until this warrior loop is fun.
 
 ## 8. Input Flow
 
@@ -178,6 +184,8 @@ Implemented renderer responsibilities:
 - Own the `WebGLRenderer`, resize handling, and WebGL2 checks.
 - Draw a procedural forest (shared/instanced trees, rocks, grass, boundary stones).
 - Draw a stylized Bernardo placeholder whose transform is copied from simulation.
+- Pool Skeleton Warrior views by id with shared bone geometries and materials.
+- Show a short attack ring and scale/flash hit and death reactions.
 - Follow the interpolated player with a fixed isometric offset and exponential smoothing.
 - Dispose geometries, materials, instanced meshes, listeners, and the renderer.
 
@@ -187,13 +195,14 @@ See `docs/decisions/0004-incremental-asset-integration.md`.
 
 ## 11. Asset Loading
 
-No production asset pipeline exists yet. The forest and Bernardo are procedural placeholders.
+No production asset pipeline exists yet. The forest, Bernardo, and Skeleton Warriors are procedural placeholders.
 
 ## 12. Audio and UI
 
 - Audio is not implemented.
-- UI is a full-viewport canvas, a boot-error message, and a small “Move: WASD / Arrow Keys” hint.
-- No event bus. Do not add one until combat, UI, and audio need decoupling.
+- UI is HTML/CSS: health bar, kill count, run timer, movement hint, and a Game Over overlay with Restart.
+- HUD values update only when they change.
+- No event bus.
 
 ## 13. Persistence
 
@@ -201,13 +210,13 @@ Not implemented. No server, no accounts.
 
 ## 14. Testing Strategy
 
-| Layer       | Tool                    | What exists now                                                   |
-| ----------- | ----------------------- | ----------------------------------------------------------------- |
-| Unit        | Vitest                  | GameLoop, movement, bounds, intent, keyboard state, camera follow |
-| Integration | Vitest                  | World interpolation snapshot                                      |
-| E2E         | Playwright              | Not installed                                                     |
-| Quality     | `tsc`, ESLint, Prettier | Configured                                                        |
-| Build       | Vite                    | `npm run build`                                                   |
+| Layer       | Tool                    | What exists now                                                 |
+| ----------- | ----------------------- | --------------------------------------------------------------- |
+| Unit        | Vitest                  | GameLoop, movement, spawn, pursuit, targeting, damage, HUD time |
+| Integration | Vitest                  | World interpolation, game-over, restart                         |
+| E2E         | Playwright              | Not installed                                                   |
+| Quality     | `tsc`, ESLint, Prettier | Configured                                                      |
+| Build       | Vite                    | `npm run build`                                                 |
 
 `GameLoop` tests inject a manual clock and frame scheduler. They must not wait on real wall-clock time.
 
@@ -221,22 +230,23 @@ Targets from the product docs, not measured results:
 
 The production bundle is dominated by Three.js (currently above Vite's 500 kB chunk warning). That is expected for an unsplit first scene and is not an optimization pass.
 
-`docs/PERFORMANCE.md` remains absent until there are real measurements with enemies on screen.
+`docs/PERFORMANCE.md` remains absent until a measured pass with a documented machine, browser, and enemy count. The current cap is `MAX_ACTIVE_SKELETONS` (14). That is a gameplay limit, not a proven 200-enemy budget.
 
 ## 16. Resource Lifecycle
 
 Implemented dispose paths:
 
-| Resource                           | Dispose when                    |
-| ---------------------------------- | ------------------------------- |
-| Animation frame handle             | `GameLoop.stop()` / `dispose()` |
-| Window `resize` listener           | `GameRenderer.dispose()`        |
-| Keyboard listeners                 | `KeyboardInput.dispose()`       |
-| Forest and placeholder GPU objects | `GameRenderer.dispose()`        |
-| `WebGLRenderer`                    | `GameRenderer.dispose()`        |
-| Session on tab hide                | `pagehide` in `main.ts`         |
+| Resource                                      | Dispose when                                  |
+| --------------------------------------------- | --------------------------------------------- |
+| Animation frame handle                        | `GameLoop.stop()` / `dispose()`               |
+| Window `resize` listener                      | `GameRenderer.dispose()`                      |
+| Keyboard listeners                            | `KeyboardInput.dispose()`                     |
+| Forest, Bernardo, skeleton, pulse GPU objects | `GameRenderer.dispose()` / `resetForNewRun()` |
+| HUD restart listener                          | `Hud.dispose()`                               |
+| `WebGLRenderer`                               | `GameRenderer.dispose()`                      |
+| Session on tab hide                           | `pagehide` in `main.ts`                       |
 
-Restarts of a playable run are a later concern. `Game.dispose()` is idempotent.
+`Game.restart()` resets simulation and enemy views without stacking listeners or animation frames. `Game.dispose()` is idempotent.
 
 ## 17. CI and Tooling
 
@@ -257,4 +267,4 @@ Cloudflare Pages deployment is still planned.
 
 ## 18. Next Follow-Up
 
-Phase 3 should add Skeleton Warriors, spawn, automatic attacks, health, death, and restart. Movement and camera stay as they are unless combat requires new collision queries.
+Phase 4 should add experience pickups, a paused upgrade choice, and one upgradeable ability. Keep targeting and spawn data-driven so new abilities do not rewrite combat.

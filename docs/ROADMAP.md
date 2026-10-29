@@ -2,7 +2,7 @@
 
 Development is sequenced so each milestone is independently verifiable. A playable vertical slice is more important than broad infrastructure.
 
-**Current milestone:** Phase 2 complete. Phase 3 is next and must not start without explicit approval.
+**Current milestone:** Phase 3 complete. Phase 4 is next and must not start without explicit approval.
 
 Status values: `done`, `next`, `planned`.
 
@@ -13,8 +13,8 @@ Status values: `done`, `next`, `planned`.
 | M0  | Engineering documentation | Shared product and architecture baseline       | done    |
 | M1  | Technical foundation      | Tooling, loop, empty 3D scene, CI              | done    |
 | M2  | First playable scene      | Move a placeholder Bernardo in a forest arena  | done    |
-| M3  | Combat prototype          | Skeleton warriors, auto-attack, death, restart | next    |
-| M4  | Progression               | XP, level-up, one upgradeable ability          | planned |
+| M3  | Combat prototype          | Skeleton warriors, auto-attack, death, restart | done    |
+| M4  | Progression               | XP, level-up, one upgradeable ability          | next    |
 | M5  | Visual identity           | Final-style models, animation, audio           | planned |
 | M6  | Siren King                | Boss phases and victory                        | planned |
 | M7  | Polish and performance    | Measured optimization, settings, accessibility | planned |

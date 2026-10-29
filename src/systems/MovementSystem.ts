@@ -21,11 +21,7 @@ export function movePlayer(
 ): PlayerState {
   const world = screenIntentToWorld(intent);
   const next: PlayerState = {
-    x: player.x,
-    y: player.y,
-    z: player.z,
-    facingYaw: player.facingYaw,
-    radius: player.radius,
+    ...player,
   };
 
   const travel = config.speed * deltaSeconds;
@@ -40,14 +36,27 @@ export function movePlayer(
 }
 
 export function clampToArena(player: PlayerState, arenaHalfExtent: number): PlayerState {
-  const limit = arenaHalfExtent - player.radius;
+  const clamped = clampToArenaXZ(player.x, player.z, player.radius, arenaHalfExtent);
   return {
     ...player,
-    x: clamp(player.x, -limit, limit),
-    z: clamp(player.z, -limit, limit),
+    x: clamped.x,
+    z: clamped.z,
   };
 }
 
-function clamp(value: number, min: number, max: number): number {
+export function clampToArenaXZ(
+  x: number,
+  z: number,
+  radius: number,
+  arenaHalfExtent: number,
+): { x: number; z: number } {
+  const limit = arenaHalfExtent - radius;
+  return {
+    x: clamp(x, -limit, limit),
+    z: clamp(z, -limit, limit),
+  };
+}
+
+export function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
