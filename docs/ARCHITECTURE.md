@@ -8,18 +8,19 @@ Related decisions: `docs/decisions/`.
 
 ## 1. Current Runtime Reality
 
-Phase 1 is implemented: a Vite + TypeScript + Three.js bootstrap with a testable fixed-timestep loop, a minimal isometric scene, unit tests, and GitHub Actions.
+Phase 2 is implemented: a testable movement prototype in a procedural forest, with keyboard intent, arena bounds, and an isometric follow camera.
 
 | Item                                     | Status          |
 | ---------------------------------------- | --------------- |
 | `index.html` → `src/main.ts`             | Implemented     |
 | `Game` session                           | Implemented     |
 | `GameLoop`                               | Implemented     |
-| `GameRenderer` + bootstrap scene         | Implemented     |
+| Forest arena + Bernardo placeholder      | Implemented     |
+| Keyboard `InputIntent` + movement        | Implemented     |
+| Isometric follow camera                  | Implemented     |
 | WebGL2 failure UI                        | Implemented     |
-| Vitest, ESLint, Prettier                 | Implemented     |
-| GitHub Actions CI                        | Implemented     |
-| Gameplay systems, input, entities, audio | Not implemented |
+| Vitest, ESLint, Prettier, GitHub Actions | Implemented     |
+| Combat, enemies, abilities, audio        | Not implemented |
 
 Do not create empty folders to match a future tree. Add modules when a milestone needs them.
 
@@ -37,14 +38,25 @@ Implemented:
 
 ```text
 src/
-  main.ts                         Browser entry and boot-error handling
+  main.ts                              Browser entry and boot-error handling
   core/
-    Game.ts                       Session: owns loop + renderer
-    GameLoop.ts                   Fixed-timestep loop
+    Game.ts                            Session: owns loop, world, input, renderer
+    GameLoop.ts                        Fixed-timestep loop
+  config/world.ts                      Speed, arena bounds, camera, isometric basis
+  entities/player.ts                   Player simulation state
+  input/
+    InputIntent.ts                     Screen-space movement axes
+    isometric.ts                       Screen → XZ mapping
+    keyboardState.ts                   Pure keyboard reducer
+    KeyboardInput.ts                   DOM listeners
+  systems/MovementSystem.ts            Speed, facing, arena clamp
+  world/World.ts                       Previous/current player snapshots
   rendering/
-    GameRenderer.ts               WebGLRenderer, resize, dispose
-    createBootstrapScene.ts       Ground, lights, marker, isometric camera
-    webgl.ts                      WebGL2 detection and init errors
+    GameRenderer.ts                    WebGLRenderer, resize, compose views
+    createForestArena.ts               Procedural forest
+    createBernardoPlaceholder.ts       Stylized placeholder mesh
+    cameraFollow.ts                    Smooth isometric follow
+    webgl.ts                           WebGL2 detection
   style.css
 ```
 
@@ -52,28 +64,25 @@ Intended later, still absent:
 
 ```text
 src/
-  config/                         Typed gameplay data
-  types/                          Shared types
-  systems/                        Movement, combat, collision, spawn, progression
-  entities/                       Player, enemies, bosses as data
+  types/
+  systems/                             Combat, spawn, progression
+  entities/                            Enemies, bosses, projectiles
   abilities/
-  world/
-  input/
   audio/
-  ui/
+  ui/                                  Full HUD
 ```
 
-| Area           | Responsibility                                         | Status                         |
-| -------------- | ------------------------------------------------------ | ------------------------------ |
-| `core`         | Session lifecycle, fixed-timestep loop, pause, dispose | Implemented                    |
-| `rendering`    | Bootstrap scene, camera, lights, resize, GPU dispose   | Implemented (placeholder only) |
-| `systems`      | Movement, combat, collision, spawn, progression        | Planned                        |
-| `entities`     | Typed game objects, not Three.js meshes                | Planned                        |
-| `input`        | Keyboard now, touch later                              | Planned                        |
-| `config`       | Enemy, ability, and balance data                       | Planned                        |
-| `audio`        | Howler adapter                                         | Planned, Phase 5               |
-| `ui`           | DOM overlay beyond boot errors                         | Planned                        |
-| Physics engine | Rapier, only if simplified collision is insufficient   | Deferred; see ADR 0005         |
+| Area           | Responsibility                                         | Status                 |
+| -------------- | ------------------------------------------------------ | ---------------------- |
+| `core`         | Session lifecycle, fixed-timestep loop, pause, dispose | Implemented            |
+| `rendering`    | Forest, placeholder Bernardo, follow camera, dispose   | Implemented            |
+| `systems`      | Movement and arena bounds                              | Implemented            |
+| `entities`     | Player data                                            | Implemented            |
+| `input`        | Keyboard → `InputIntent`                               | Implemented            |
+| `config`       | Movement, camera, and arena values                     | Implemented            |
+| `audio`        | Howler adapter                                         | Planned, Phase 5       |
+| `ui`           | Controls hint only                                     | Implemented (minimal)  |
+| Physics engine | Rapier, only if simplified collision is insufficient   | Deferred; see ADR 0005 |
 
 ## 4. Runtime Lifecycle
 
@@ -88,11 +97,11 @@ Implemented browser lifecycle:
 Each frame:
 
 1. `GameLoop` accumulates elapsed time.
-2. While enough time remains, `update(1 / 60)` runs (currently elapsed-time only).
-3. `render(interpolationAlpha)` draws the Three.js scene.
-4. Pause skips `update` and keeps rendering.
+2. While enough time remains, `World.step(1 / 60, input.getIntent())` runs.
+3. `render(interpolationAlpha)` draws the interpolated player and follow camera.
+4. Pause skips simulation and keeps rendering.
 
-There is no scene manager, input manager, or gameplay state machine yet.
+There is no combat state machine yet.
 
 Planned later session states:
 
@@ -117,40 +126,48 @@ This split is recorded in `docs/decisions/0003-simulation-render-separation.md`.
 
 ## 6. State Ownership
 
-| State                            | Owner          | Notes                                   |
-| -------------------------------- | -------------- | --------------------------------------- |
-| Elapsed simulation time          | `Game`         | Phase 1 only; drives marker rotation    |
-| Loop status                      | `GameLoop`     | `idle`, `running`, `paused`, `disposed` |
-| Meshes, materials, camera        | `GameRenderer` | Placeholder bootstrap scene             |
-| Input intent                     | —              | Not implemented                         |
-| World snapshot (health, enemies) | —              | Not implemented                         |
-| Balance numbers                  | —              | Not implemented                         |
+| State                           | Owner           | Notes                                         |
+| ------------------------------- | --------------- | --------------------------------------------- |
+| Player position, facing, radius | `World`         | Source of truth; interpolated only for render |
+| Input intent                    | `KeyboardInput` | Screen axes; cleared on focus loss            |
+| Loop status                     | `GameLoop`      | `idle`, `running`, `paused`, `disposed`       |
+| Meshes, materials, camera       | `GameRenderer`  | Views of simulation state                     |
+| Movement / camera tunables      | `src/config/`   | Typed constants                               |
+| Enemy / combat state            | —               | Not implemented                               |
 
 Do not store authoritative gameplay state on `Object3D.userData`.
 
 ## 7. Entity Management
 
-No gameplay entities exist yet.
+The player is a plain `PlayerState` (`x`, `y`, `z`, `facingYaw`, `radius`). Rendering copies that snapshot onto a placeholder group. Mesh internals are not gameplay.
 
-Planned for the first playable slice: player, Skeleton Warrior, arena bounds.
+Planned next: Skeleton Warrior and other combat entities.
 
 ## 8. Input Flow
 
-Not implemented. Planned:
+Implemented:
 
 ```text
-Keyboard / future touch
+Keyboard (WASD / arrows)
         ↓
-   InputManager
+   KeyboardInput / keyboardState
         ↓
-  InputIntent { moveX, moveZ, pause, uiSelection }
+  InputIntent { axisX, axisY }   // screen space, normalized
         ↓
-   Simulation systems
+  screenIntentToWorld()          // isometric XZ basis
+        ↓
+   MovementSystem
 ```
+
+W/Up moves toward world `(-X, -Z)` so “up” on screen matches the camera at `+X +Y +Z`. See `docs/decisions/0006-isometric-keyboard-mapping.md`.
+
+Arrow keys call `preventDefault()` to avoid page scrolling. Blur, focus, and `visibilitychange` clear held keys so movement cannot stick after tabbing away.
+
+Touch can emit the same `InputIntent` later.
 
 ## 9. Collision and Physics
 
-Not implemented. Planned: simplified XZ-plane shapes owned by the simulation. Rapier is not a Phase 1 dependency.
+Player motion is clamped to a square on the XZ plane: `|x|` and `|z|` cannot exceed `ARENA_HALF_EXTENT - radius`. There is no rigid-body physics.
 
 See `docs/decisions/0005-simplified-collision-before-rapier.md`.
 
@@ -158,26 +175,24 @@ See `docs/decisions/0005-simplified-collision-before-rapier.md`.
 
 Implemented renderer responsibilities:
 
-- Own the `WebGLRenderer`, scene, isometric `PerspectiveCamera`, lights, and window resize handling.
-- Require WebGL2; throw `WebGLInitError` otherwise.
-- Draw a ground plane, ambient light, directional light, and a yellow icosahedron.
-- Rotate the marker from simulation elapsed time (visual proof of the loop, not gameplay).
-- Dispose geometries, materials, the renderer, and the resize listener.
+- Own the `WebGLRenderer`, resize handling, and WebGL2 checks.
+- Draw a procedural forest (shared/instanced trees, rocks, grass, boundary stones).
+- Draw a stylized Bernardo placeholder whose transform is copied from simulation.
+- Follow the interpolated player with a fixed isometric offset and exponential smoothing.
+- Dispose geometries, materials, instanced meshes, listeners, and the renderer.
 
-The camera sits at `(14, 14, 14)` looking at the origin. It does not follow an entity yet.
-
-Instancing, animation mixers, and GLB loading are not implemented.
+The camera does not orbit. Animation mixers and GLB loading are not implemented.
 
 See `docs/decisions/0004-incremental-asset-integration.md`.
 
 ## 11. Asset Loading
 
-No production asset pipeline exists yet. The bootstrap scene is procedural.
+No production asset pipeline exists yet. The forest and Bernardo are procedural placeholders.
 
 ## 12. Audio and UI
 
 - Audio is not implemented.
-- UI is a full-viewport canvas plus a hidden boot-error message. There is no HUD.
+- UI is a full-viewport canvas, a boot-error message, and a small “Move: WASD / Arrow Keys” hint.
 - No event bus. Do not add one until combat, UI, and audio need decoupling.
 
 ## 13. Persistence
@@ -186,13 +201,13 @@ Not implemented. No server, no accounts.
 
 ## 14. Testing Strategy
 
-| Layer       | Tool                    | What exists now                                             |
-| ----------- | ----------------------- | ----------------------------------------------------------- |
-| Unit        | Vitest                  | `GameLoop` lifecycle, timestep, catch-up cap, WebGL2 helper |
-| Integration | Vitest                  | Not yet                                                     |
-| E2E         | Playwright              | Not installed                                               |
-| Quality     | `tsc`, ESLint, Prettier | Configured                                                  |
-| Build       | Vite                    | `npm run build`                                             |
+| Layer       | Tool                    | What exists now                                                   |
+| ----------- | ----------------------- | ----------------------------------------------------------------- |
+| Unit        | Vitest                  | GameLoop, movement, bounds, intent, keyboard state, camera follow |
+| Integration | Vitest                  | World interpolation snapshot                                      |
+| E2E         | Playwright              | Not installed                                                     |
+| Quality     | `tsc`, ESLint, Prettier | Configured                                                        |
+| Build       | Vite                    | `npm run build`                                                   |
 
 `GameLoop` tests inject a manual clock and frame scheduler. They must not wait on real wall-clock time.
 
@@ -212,13 +227,14 @@ The production bundle is dominated by Three.js (currently above Vite's 500 kB ch
 
 Implemented dispose paths:
 
-| Resource                            | Dispose when                    |
-| ----------------------------------- | ------------------------------- |
-| Animation frame handle              | `GameLoop.stop()` / `dispose()` |
-| Window `resize` listener            | `GameRenderer.dispose()`        |
-| Ground and marker geometry/material | `GameRenderer.dispose()`        |
-| `WebGLRenderer`                     | `GameRenderer.dispose()`        |
-| Session on tab hide                 | `pagehide` in `main.ts`         |
+| Resource                           | Dispose when                    |
+| ---------------------------------- | ------------------------------- |
+| Animation frame handle             | `GameLoop.stop()` / `dispose()` |
+| Window `resize` listener           | `GameRenderer.dispose()`        |
+| Keyboard listeners                 | `KeyboardInput.dispose()`       |
+| Forest and placeholder GPU objects | `GameRenderer.dispose()`        |
+| `WebGLRenderer`                    | `GameRenderer.dispose()`        |
+| Session on tab hide                | `pagehide` in `main.ts`         |
 
 Restarts of a playable run are a later concern. `Game.dispose()` is idempotent.
 
@@ -241,9 +257,4 @@ Cloudflare Pages deployment is still planned.
 
 ## 18. Next Follow-Up
 
-Phase 2 should add:
-
-- Player movement simulation independent of meshes.
-- Keyboard input as an intent object.
-- A bounded forest arena and a follow camera.
-- Unit tests for movement and bounds, still without WebGL.
+Phase 3 should add Skeleton Warriors, spawn, automatic attacks, health, death, and restart. Movement and camera stay as they are unless combat requires new collision queries.

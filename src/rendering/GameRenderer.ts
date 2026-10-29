@@ -1,13 +1,26 @@
-import { SRGBColorSpace, WebGLRenderer } from 'three';
+import { PerspectiveCamera, SRGBColorSpace, WebGLRenderer } from 'three';
 
-import { type BootstrapScene, createBootstrapScene } from './createBootstrapScene';
+import {
+  CAMERA_FAR,
+  CAMERA_FOV,
+  CAMERA_NEAR,
+  CAMERA_OFFSET,
+  PLAYER_LOOK_HEIGHT,
+} from '../config/world';
+import type { PlayerSnapshot } from '../world/World';
+import { type Vec3, stepCameraFollow } from './cameraFollow';
+import { type BernardoPlaceholder, createBernardoPlaceholder } from './createBernardoPlaceholder';
+import { type ForestArena, createForestArena } from './createForestArena';
 import { isWebGL2Available, WebGLInitError } from './webgl';
 
 export class GameRenderer {
   private readonly canvas: HTMLCanvasElement;
   private readonly renderer: WebGLRenderer;
-  private readonly bootstrap: BootstrapScene;
+  private readonly camera: PerspectiveCamera;
+  private readonly forest: ForestArena;
+  private readonly bernardo: BernardoPlaceholder;
   private readonly handleResize: () => void;
+  private lookAt: Vec3 = { x: 0, y: PLAYER_LOOK_HEIGHT, z: 0 };
   private disposed = false;
 
   constructor(canvas: HTMLCanvasElement) {
@@ -41,7 +54,19 @@ export class GameRenderer {
 
     const { width, height } = this.measureCanvas();
     this.renderer.setSize(width, height, false);
-    this.bootstrap = createBootstrapScene(width / Math.max(height, 1));
+
+    this.camera = new PerspectiveCamera(
+      CAMERA_FOV,
+      width / Math.max(height, 1),
+      CAMERA_NEAR,
+      CAMERA_FAR,
+    );
+    this.camera.position.set(CAMERA_OFFSET.x, CAMERA_OFFSET.y, CAMERA_OFFSET.z);
+    this.camera.lookAt(0, PLAYER_LOOK_HEIGHT, 0);
+
+    this.forest = createForestArena();
+    this.bernardo = createBernardoPlaceholder();
+    this.forest.scene.add(this.bernardo.group);
 
     this.handleResize = () => {
       this.resize();
@@ -49,13 +74,24 @@ export class GameRenderer {
     window.addEventListener('resize', this.handleResize);
   }
 
-  render(elapsedSeconds: number): void {
+  render(player: PlayerSnapshot, deltaSeconds: number): void {
     if (this.disposed) {
       return;
     }
 
-    this.bootstrap.marker.rotation.y = elapsedSeconds * 0.7;
-    this.renderer.render(this.bootstrap.scene, this.bootstrap.camera);
+    this.bernardo.group.position.set(player.x, player.y, player.z);
+    this.bernardo.group.rotation.y = player.facingYaw;
+
+    const pose = stepCameraFollow(
+      this.lookAt,
+      { x: player.x, y: player.y + PLAYER_LOOK_HEIGHT, z: player.z },
+      deltaSeconds,
+    );
+    this.lookAt = pose.lookAt;
+    this.camera.position.set(pose.position.x, pose.position.y, pose.position.z);
+    this.camera.lookAt(pose.lookAt.x, pose.lookAt.y, pose.lookAt.z);
+
+    this.renderer.render(this.forest.scene, this.camera);
   }
 
   dispose(): void {
@@ -65,7 +101,9 @@ export class GameRenderer {
 
     this.disposed = true;
     window.removeEventListener('resize', this.handleResize);
-    this.bootstrap.dispose();
+    this.forest.scene.remove(this.bernardo.group);
+    this.bernardo.dispose();
+    this.forest.dispose();
     this.renderer.dispose();
   }
 
@@ -80,8 +118,8 @@ export class GameRenderer {
     }
 
     this.renderer.setSize(width, height, false);
-    this.bootstrap.camera.aspect = width / height;
-    this.bootstrap.camera.updateProjectionMatrix();
+    this.camera.aspect = width / height;
+    this.camera.updateProjectionMatrix();
   }
 
   private measureCanvas(): { width: number; height: number } {

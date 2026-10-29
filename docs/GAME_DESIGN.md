@@ -4,7 +4,7 @@ Bernardo vs. The Undead: Rise of the Siren King
 
 This document is the gameplay source of truth. It distinguishes **confirmed** requirements from **planned** ideas. Numeric combat values are not finalized; they will live in typed configuration once combat exists.
 
-**Status:** Confirmed design for pre-production. No playable build exists yet.
+**Status:** Confirmed design. Phase 2 is a movement prototype in a procedural forest. Combat is not implemented yet.
 
 ## 1. Premise
 
@@ -14,18 +14,18 @@ Inspiration for **gameplay patterns only**: Vampire Survivors, Hades, Brotato. D
 
 ## 2. Confirmed Pillars
 
-| Pillar | Requirement |
-|---|---|
-| Protagonist | Bernardo |
-| Perspective | Isometric 3D |
-| Combat | Automatic attacks; the player steers and positions |
-| Enemies | Skeleton hordes only |
-| Setting | Enchanted forest arena |
-| Progression | Experience collection, level-ups, upgradeable abilities |
-| Boss | Siren King |
-| Platform | Desktop browsers first, WebGL2 |
-| Session | Single-player, fully client-side |
-| Tone | Stylized cartoon characters in a slightly dark fantasy forest |
+| Pillar      | Requirement                                                   |
+| ----------- | ------------------------------------------------------------- |
+| Protagonist | Bernardo                                                      |
+| Perspective | Isometric 3D                                                  |
+| Combat      | Automatic attacks; the player steers and positions            |
+| Enemies     | Skeleton hordes only                                          |
+| Setting     | Enchanted forest arena                                        |
+| Progression | Experience collection, level-ups, upgradeable abilities       |
+| Boss        | Siren King                                                    |
+| Platform    | Desktop browsers first, WebGL2                                |
+| Session     | Single-player, fully client-side                              |
+| Tone        | Stylized cartoon characters in a slightly dark fantasy forest |
 
 **Out of scope:** zombies, multiplayer, accounts, a backend, a downloadable client.
 
@@ -82,15 +82,15 @@ Explicitly **not** in the first slice: additional skeleton types, experience, ab
 
 ### Planned animations
 
-| Animation | Intent | Status |
-|---|---|---|
-| Idle | Default pose | Planned |
-| Run | Locomotion | Planned |
-| Attack | Primary attack | Planned |
-| Hit | Damage reaction | Planned |
-| Victory | Boss defeated | Planned |
-| Defeat | Run failed | Planned |
-| Dodge | Optional flourish | Not a confirmed control |
+| Animation | Intent            | Status                  |
+| --------- | ----------------- | ----------------------- |
+| Idle      | Default pose      | Planned                 |
+| Run       | Locomotion        | Planned                 |
+| Attack    | Primary attack    | Planned                 |
+| Hit       | Damage reaction   | Planned                 |
+| Victory   | Boss defeated     | Planned                 |
+| Defeat    | Run failed        | Planned                 |
+| Dodge     | Optional flourish | Not a confirmed control |
 
 Dodge is **not** a confirmed gameplay action. Early movement is walk/run only.
 
@@ -104,11 +104,11 @@ Dodge is **not** a confirmed gameplay action. Early movement is walk/run only.
 
 ### Planned desktop input
 
-| Input | Action | Status |
-|---|---|---|
-| W A S D or arrow keys | Move on the XZ plane | Confirmed for first slice |
-| Escape | Pause / resume | Planned with UI |
-| Level-up UI | Mouse or keyboard selection | Planned with progression |
+| Input                 | Action                                | Status                   |
+| --------------------- | ------------------------------------- | ------------------------ |
+| W A S D or arrow keys | Move on the XZ plane, camera-relative | Implemented              |
+| Escape                | Pause / resume                        | Planned with UI          |
+| Level-up UI           | Mouse or keyboard selection           | Planned with progression |
 
 Attack keys are not required for the automatic combat model.
 
@@ -136,14 +136,14 @@ The world is a gameplay arena, not an open-world exploration game.
 
 All regular enemies are skeletons. **Do not introduce zombies.**
 
-| Enemy | Behavior | Threat | Status |
-|---|---|---|---|
-| Skeleton Warrior | Approaches and attacks at close range | Low | Confirmed for first combat slice |
-| Skeleton Runner | Faster pursuit | Medium | Planned |
-| Skeleton Archer | Ranged attacks | Medium | Planned |
-| Skeleton Mage | Magical projectiles | High | Planned |
-| Skeleton Brute | Slow, high health and damage | High | Planned |
-| Elite Skeleton | Enhanced attributes and special abilities | Very High | Planned |
+| Enemy            | Behavior                                  | Threat    | Status                           |
+| ---------------- | ----------------------------------------- | --------- | -------------------------------- |
+| Skeleton Warrior | Approaches and attacks at close range     | Low       | Confirmed for first combat slice |
+| Skeleton Runner  | Faster pursuit                            | Medium    | Planned                          |
+| Skeleton Archer  | Ranged attacks                            | Medium    | Planned                          |
+| Skeleton Mage    | Magical projectiles                       | High      | Planned                          |
+| Skeleton Brute   | Slow, high health and damage              | High      | Planned                          |
+| Elite Skeleton   | Enhanced attributes and special abilities | Very High | Planned                          |
 
 ### Confirmed AI approach
 
@@ -195,14 +195,14 @@ Balance numbers are **not confirmed**. They will be introduced as typed configur
 
 These are design concepts, not a commitment to ship all of them:
 
-| Ability | Intended effect |
-|---|---|
-| Lightning Sword | Automatic nearby attack |
-| Fireball | Explosive projectile |
-| Thunder Strike | Lightning damage |
-| Dino Guardian | Attacking companion |
-| Magic Shield | Temporary protection |
-| Tornado | Area damage and enemy displacement |
+| Ability         | Intended effect                    |
+| --------------- | ---------------------------------- |
+| Lightning Sword | Automatic nearby attack            |
+| Fireball        | Explosive projectile               |
+| Thunder Strike  | Lightning damage                   |
+| Dino Guardian   | Attacking companion                |
+| Magic Shield    | Temporary protection               |
+| Tornado         | Area damage and enemy displacement |
 
 Lightning Sword, or an equivalent nearby auto-attack, is the expected first implemented ability because it matches the first combat slice.
 
@@ -244,11 +244,11 @@ The Siren King is the final boss and an original creature. Do not copy existing 
 
 ### Planned phases
 
-| Phase | Health window | Mechanics |
-|---|---|---|
-| Awakening | 100–70% | Sonic waves and ground attacks |
-| The Summoning | 70–30% | Skeleton reinforcements and area attacks |
-| Final Resonance | 30–0% | Increased aggression and powerful sonic attacks |
+| Phase           | Health window | Mechanics                                       |
+| --------------- | ------------- | ----------------------------------------------- |
+| Awakening       | 100–70%       | Sonic waves and ground attacks                  |
+| The Summoning   | 70–30%        | Skeleton reinforcements and area attacks        |
+| Final Resonance | 30–0%         | Increased aggression and powerful sonic attacks |
 
 ### Planned abilities
 
@@ -262,11 +262,11 @@ The boss is out of scope until Phase 6. Phase values above are design intent and
 
 ## 14. Victory and Defeat
 
-| Outcome | Condition | Status |
-|---|---|---|
-| Defeat | Bernardo's health reaches zero | Confirmed |
-| Victory | Siren King health reaches zero | Confirmed for the full game |
-| Restart | Player can start a new run after victory or defeat | Confirmed intent |
+| Outcome | Condition                                          | Status                      |
+| ------- | -------------------------------------------------- | --------------------------- |
+| Defeat  | Bernardo's health reaches zero                     | Confirmed                   |
+| Victory | Siren King health reaches zero                     | Confirmed for the full game |
+| Restart | Player can start a new run after victory or defeat | Confirmed intent            |
 
 There is no confirmed meta-progression between runs in the first public version. Local persistence of settings or unlocks is a later Phase 7 idea, not a confirmed launch requirement.
 

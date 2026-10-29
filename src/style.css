@@ -35,3 +35,16 @@ body,
 .boot-error:not([hidden]) {
   display: flex;
 }
+
+.controls-hint {
+  position: absolute;
+  left: 1.25rem;
+  bottom: 1.25rem;
+  margin: 0;
+  color: #f4efe8;
+  font-size: 0.95rem;
+  letter-spacing: 0.02em;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.75);
+  pointer-events: none;
+  user-select: none;
+}

@@ -8,6 +8,11 @@ function showBootError(message: string): void {
     canvas.hidden = true;
   }
 
+  const hint = document.getElementById('controls-hint');
+  if (hint) {
+    hint.hidden = true;
+  }
+
   const errorElement = document.getElementById('boot-error');
   if (!(errorElement instanceof HTMLElement)) {
     return;

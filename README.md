@@ -8,7 +8,7 @@ Fight endless hordes of skeletons, unlock powerful abilities, survive an increas
 
 Inspired by the fast-paced progression and survival mechanics of _Vampire Survivors_, Bernardo vs. The Undead combines accessible gameplay, stylized 3D graphics, and challenging encounters in a single-player browser experience.
 
-> **Project Status:** Phase 1 complete — Vite, TypeScript, and Three.js bootstrap with a testable game loop and CI. Gameplay is not implemented yet.
+> **Project Status:** Phase 2 complete — move a placeholder Bernardo through a procedural forest arena. Combat is not implemented yet.
 
 ---
 
@@ -389,7 +389,7 @@ npm install
 npm run dev
 ```
 
-Open the local URL displayed by Vite. The bootstrap scene is a dark forest-colored ground plane, isometric lighting, and a yellow marker. There is no player control yet.
+Open the local URL displayed by Vite. Use WASD or the arrow keys to move Bernardo. There are no enemies or combat yet.
 
 ### Production Build
 
@@ -481,11 +481,11 @@ The game will be developed incrementally through independently testable mileston
 
 ### Phase 2 — First Playable Scene
 
-- [ ] Create the initial forest arena.
-- [ ] Implement an isometric camera.
-- [ ] Add player movement.
-- [ ] Implement basic collisions.
-- [ ] Add placeholder character assets.
+- [x] Create the initial forest arena.
+- [x] Implement an isometric camera.
+- [x] Add player movement.
+- [x] Implement basic collisions.
+- [x] Add placeholder character assets.
 
 ### Phase 3 — Combat Prototype
 
