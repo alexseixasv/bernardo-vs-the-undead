@@ -9,12 +9,21 @@
     <div id="app">
       <canvas id="game-canvas"></canvas>
       <div id="hud" class="hud">
-        <div class="hud-health">
-          <span class="hud-label">Health</span>
-          <div class="health-bar" aria-hidden="true">
-            <div id="health-fill" class="health-fill"></div>
+        <div class="hud-meters">
+          <div class="hud-health">
+            <span class="hud-label">Health</span>
+            <div class="health-bar" aria-hidden="true">
+              <div id="health-fill" class="health-fill"></div>
+            </div>
+            <span id="health-text">100/100</span>
           </div>
-          <span id="health-text">100</span>
+          <div class="hud-xp">
+            <span class="hud-label">Lv <strong id="player-level">1</strong></span>
+            <div class="xp-bar" aria-hidden="true">
+              <div id="xp-fill" class="xp-fill"></div>
+            </div>
+            <span id="xp-text">0/20</span>
+          </div>
         </div>
         <div class="hud-stats">
           <span>Defeated <strong id="kill-count">0</strong></span>
@@ -22,6 +31,15 @@
         </div>
       </div>
       <p id="controls-hint" class="controls-hint">Move: WASD / Arrow Keys</p>
+      <div id="level-up" class="level-up" hidden>
+        <div class="level-up-panel">
+          <p class="level-up-kicker">Level Up</p>
+          <h1 id="level-up-title">Level 2</h1>
+          <p class="level-up-copy">Choose one upgrade</p>
+          <div id="upgrade-cards" class="upgrade-cards"></div>
+          <p class="level-up-hint">Click a card or press 1, 2, or 3</p>
+        </div>
+      </div>
       <div id="game-over" class="game-over" hidden>
         <div class="game-over-card">
           <h1>Game Over</h1>

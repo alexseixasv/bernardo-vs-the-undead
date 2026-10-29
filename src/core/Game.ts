@@ -17,13 +17,19 @@ export class Game {
     this.world = new World();
     this.input = new KeyboardInput();
     this.renderer = new GameRenderer(canvas);
-    this.hud = new Hud(() => {
-      this.restart();
+    this.hud = new Hud({
+      onRestart: () => {
+        this.restart();
+      },
+      onSelectUpgrade: (index) => {
+        this.selectUpgrade(index);
+      },
     });
     this.loop = new GameLoop({
       update: (deltaSeconds) => {
         this.world.step(deltaSeconds, this.input.getIntent());
-        if (this.world.getStatus() === 'gameOver') {
+        const status = this.world.getStatus();
+        if (status === 'gameOver' || status === 'levelUp') {
           this.loop.pause();
         }
       },
@@ -83,6 +89,24 @@ export class Game {
     this.input.dispose();
     this.hud.dispose();
     this.renderer.dispose();
+  }
+
+  private selectUpgrade(index: number): void {
+    if (this.disposed) {
+      return;
+    }
+
+    const applied = this.world.chooseUpgrade(index);
+    if (!applied) {
+      return;
+    }
+
+    this.lastRenderSeconds = null;
+    this.hud.sync(this.world.getSnapshot(1));
+
+    if (this.world.getStatus() === 'playing' && this.loop.getStatus() === 'paused') {
+      this.loop.resume();
+    }
   }
 
   private consumeRenderDelta(): number {

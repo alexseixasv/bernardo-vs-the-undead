@@ -18,6 +18,11 @@ function showBootError(message: string): void {
     hud.hidden = true;
   }
 
+  const levelUp = document.getElementById('level-up');
+  if (levelUp) {
+    levelUp.hidden = true;
+  }
+
   const errorElement = document.getElementById('boot-error');
   if (!(errorElement instanceof HTMLElement)) {
     return;

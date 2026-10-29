@@ -1,4 +1,10 @@
+import {
+  cloneAbilityLoadout,
+  createAbilityLoadout,
+  type AbilityLoadout,
+} from '../config/abilities';
 import { PLAYER_MAX_HEALTH } from '../config/combat';
+import { STARTING_LEVEL, xpRequiredForLevel } from '../config/progression';
 import { PLAYER_RADIUS } from '../config/world';
 
 export interface PlayerState {
@@ -11,6 +17,12 @@ export interface PlayerState {
   maxHealth: number;
   attackCooldown: number;
   hurtCooldown: number;
+  swordCooldown: number;
+  level: number;
+  xp: number;
+  xpToNext: number;
+  pendingLevelUps: number;
+  abilities: AbilityLoadout;
 }
 
 export function createPlayerState(): PlayerState {
@@ -24,9 +36,18 @@ export function createPlayerState(): PlayerState {
     maxHealth: PLAYER_MAX_HEALTH,
     attackCooldown: 0,
     hurtCooldown: 0,
+    swordCooldown: 0,
+    level: STARTING_LEVEL,
+    xp: 0,
+    xpToNext: xpRequiredForLevel(STARTING_LEVEL),
+    pendingLevelUps: 0,
+    abilities: createAbilityLoadout(),
   };
 }
 
 export function clonePlayerState(player: PlayerState): PlayerState {
-  return { ...player };
+  return {
+    ...player,
+    abilities: cloneAbilityLoadout(player.abilities),
+  };
 }

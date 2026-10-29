@@ -11,10 +11,13 @@ import {
 } from '../../../src/config/combat';
 import { createSkeletonWarrior } from '../../../src/entities/enemy';
 import { createPlayerState } from '../../../src/entities/player';
+import { applyUpgrade } from '../../../src/systems/AbilitySystem';
 import {
   applyContactDamage,
   applyDamage,
   autoAttack,
+  isInsideSwordArc,
+  lightningSwordAttack,
   selectNearestTarget,
 } from '../../../src/systems/CombatSystem';
 
@@ -72,6 +75,64 @@ describe('autoAttack', () => {
     const second = autoAttack(first.player, first.enemies, 0.1);
     expect(second.pulse).toBeNull();
     expect(second.enemies[0]?.health).toBe(first.enemies[0]?.health);
+  });
+});
+
+describe('lightningSwordAttack', () => {
+  it('hits enemies in a forward arc and ignores enemies behind Bernardo', () => {
+    const player = {
+      ...applyUpgrade(createPlayerState(), 'lightningSword'),
+      facingYaw: 0,
+      swordCooldown: 0,
+    };
+    const ahead = createSkeletonWarrior(1, 0, 1.2);
+    const behind = createSkeletonWarrior(2, 0, -1.2);
+
+    expect(isInsideSwordArc(0, 0, 0, 2.4, (80 * Math.PI) / 180, 0, 1.2)).toBe(true);
+    expect(isInsideSwordArc(0, 0, 0, 2.4, (80 * Math.PI) / 180, 0, -1.2)).toBe(false);
+
+    const result = lightningSwordAttack(player, [ahead, behind], 0);
+    expect(result.slash).not.toBeNull();
+    expect(result.enemies[0]?.health).toBeLessThan(SKELETON_MAX_HEALTH);
+    expect(result.enemies[1]?.health).toBe(SKELETON_MAX_HEALTH);
+  });
+
+  it('keeps an independent cooldown from Magic Pulse', () => {
+    const player = {
+      ...applyUpgrade(createPlayerState(), 'lightningSword'),
+      facingYaw: 0,
+      attackCooldown: 0,
+      swordCooldown: 0,
+    };
+    const pulseTarget = createSkeletonWarrior(1, 1.2, 0);
+    const swordTarget = createSkeletonWarrior(2, 0, 1.2);
+
+    const pulse = autoAttack(player, [pulseTarget, swordTarget], 0);
+    const sword = lightningSwordAttack(pulse.player, pulse.enemies, 0);
+
+    expect(pulse.pulse).not.toBeNull();
+    expect(sword.slash).not.toBeNull();
+    expect(pulse.player.attackCooldown).toBeGreaterThan(0);
+    expect(sword.player.swordCooldown).toBeGreaterThan(0);
+    expect(pulse.player.swordCooldown).toBe(0);
+  });
+
+  it('does not count a second kill on an enemy already slain this step', () => {
+    const player = {
+      ...applyUpgrade(createPlayerState(), 'lightningSword'),
+      facingYaw: 0,
+      attackCooldown: 0,
+      swordCooldown: 0,
+    };
+    const enemy = { ...createSkeletonWarrior(1, 0, 1), health: 1, maxHealth: 1 };
+
+    const pulse = autoAttack(player, [enemy], 0);
+    const sword = lightningSwordAttack(pulse.player, pulse.enemies, 0);
+
+    expect(pulse.kills).toBe(1);
+    expect(sword.kills).toBe(0);
+    expect(pulse.deaths).toHaveLength(1);
+    expect(sword.deaths).toHaveLength(0);
   });
 });
 

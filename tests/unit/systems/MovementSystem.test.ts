@@ -50,6 +50,16 @@ describe('movePlayer', () => {
     expect(player.facingYaw).toBeCloseTo(Math.atan2(player.x, player.z));
   });
 
+  it('uses the supplied speed so Swift Boots stay frame-rate independent', () => {
+    const upgraded = PLAYER_MOVE_SPEED + 1.2;
+    const player = movePlayer(createPlayerState(), createInputIntent(0, 1), 0.5, {
+      speed: upgraded,
+      arenaHalfExtent: ARENA_HALF_EXTENT,
+    });
+
+    expect(Math.hypot(player.x, player.z)).toBeCloseTo(upgraded * 0.5);
+  });
+
   it('does not depend on rendering objects', () => {
     const player = movePlayer(createPlayerState(), createInputIntent(0, -1), 0.25, CONFIG);
 

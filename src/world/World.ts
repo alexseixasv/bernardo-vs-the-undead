@@ -1,20 +1,34 @@
+import { deriveCombatStats } from '../config/abilities';
 import { DEATH_DURATION, HIT_FLASH_DURATION, PLAYER_HURT_COOLDOWN } from '../config/combat';
+import { XP_PER_GEM } from '../config/progression';
+import { ARENA_HALF_EXTENT } from '../config/world';
 import { cloneEnemyState, type EnemyState } from '../entities/enemy';
 import { clonePlayerState, createPlayerState, type PlayerState } from '../entities/player';
+import { cloneXpGem, type XpGem } from '../entities/xpGem';
 import type { InputIntent } from '../input/InputIntent';
 import { mulberry32, type RandomFn } from '../math/random';
+import { applyUpgrade, generateUpgradeOffers, type UpgradeOffer } from '../systems/AbilitySystem';
 import {
   applyContactDamage,
   autoAttack,
+  lightningSwordAttack,
   tickAttackPulse,
   tickEnemyPresentation,
+  tickSwordSlash,
   type AttackPulse,
+  type SwordSlash,
 } from '../systems/CombatSystem';
 import { movePlayer } from '../systems/MovementSystem';
+import {
+  applyExperienceToPlayer,
+  collectGems,
+  dropGemsForDeaths,
+  type CombatDeath,
+} from '../systems/ProgressionSystem';
 import { pursuePlayer } from '../systems/PursuitSystem';
 import { createSpawnState, trySpawnSkeleton, type SpawnState } from '../systems/SpawnSystem';
 
-export type RunStatus = 'playing' | 'gameOver';
+export type RunStatus = 'playing' | 'levelUp' | 'gameOver';
 
 export interface PlayerSnapshot {
   x: number;
@@ -24,6 +38,10 @@ export interface PlayerSnapshot {
   health: number;
   maxHealth: number;
   hurtAmount: number;
+  level: number;
+  xp: number;
+  xpToNext: number;
+  pendingLevelUps: number;
 }
 
 export interface EnemySnapshot {
@@ -37,10 +55,19 @@ export interface EnemySnapshot {
   deathAmount: number;
 }
 
+export interface GemSnapshot {
+  id: number;
+  x: number;
+  z: number;
+}
+
 export interface WorldSnapshot {
   player: PlayerSnapshot;
   enemies: EnemySnapshot[];
+  gems: GemSnapshot[];
   pulse: AttackPulse | null;
+  slash: SwordSlash | null;
+  offers: UpgradeOffer[];
   status: RunStatus;
   kills: number;
   elapsedSeconds: number;
@@ -50,6 +77,7 @@ export interface WorldOptions {
   random?: RandomFn;
   player?: PlayerState;
   enemies?: EnemyState[];
+  gems?: XpGem[];
 }
 
 export class World {
@@ -58,28 +86,38 @@ export class World {
   private player: PlayerState;
   private previousEnemies = new Map<number, EnemyState>();
   private enemies: EnemyState[] = [];
+  private gems: XpGem[] = [];
   private spawn: SpawnState = createSpawnState();
   private pulse: AttackPulse | null = null;
+  private slash: SwordSlash | null = null;
+  private offers: UpgradeOffer[] = [];
   private status: RunStatus = 'playing';
   private kills = 0;
   private elapsedSeconds = 0;
+  private nextGemId = 1;
 
   constructor(options: WorldOptions = {}) {
     this.random = options.random ?? mulberry32(20261029);
     this.player = clonePlayerState(options.player ?? createPlayerState());
     this.previousPlayer = clonePlayerState(this.player);
     this.enemies = (options.enemies ?? []).map(cloneEnemyState);
+    this.gems = (options.gems ?? []).map(cloneXpGem);
   }
 
   step(deltaSeconds: number, intent: InputIntent): void {
-    if (this.status === 'gameOver') {
+    if (this.status !== 'playing') {
       return;
     }
 
     this.previousPlayer = clonePlayerState(this.player);
     this.previousEnemies = new Map(this.enemies.map((enemy) => [enemy.id, cloneEnemyState(enemy)]));
     this.elapsedSeconds += deltaSeconds;
-    this.player = movePlayer(this.player, intent, deltaSeconds);
+
+    const stats = deriveCombatStats(this.player.abilities);
+    this.player = movePlayer(this.player, intent, deltaSeconds, {
+      speed: stats.moveSpeed,
+      arenaHalfExtent: ARENA_HALF_EXTENT,
+    });
 
     const spawned = trySpawnSkeleton(
       this.spawn,
@@ -94,13 +132,33 @@ export class World {
 
     enemies = enemies.map((enemy) => pursuePlayer(enemy, this.player, deltaSeconds));
 
-    const attack = autoAttack(this.player, enemies, deltaSeconds);
-    this.player = attack.player;
-    enemies = attack.enemies;
-    this.kills += attack.kills;
-    this.pulse = attack.pulse ?? tickAttackPulse(this.pulse, deltaSeconds);
+    const pulse = autoAttack(this.player, enemies, deltaSeconds);
+    this.player = pulse.player;
+    enemies = pulse.enemies;
+
+    const sword = lightningSwordAttack(this.player, enemies, deltaSeconds);
+    this.player = sword.player;
+    enemies = sword.enemies;
+
+    const deaths = uniqueDeaths(pulse.deaths, sword.deaths);
+    this.kills += deaths.length;
+    this.pulse = pulse.pulse ?? tickAttackPulse(this.pulse, deltaSeconds);
+    this.slash = sword.slash ?? tickSwordSlash(this.slash, deltaSeconds);
 
     this.player = applyContactDamage(this.player, enemies, deltaSeconds);
+
+    const dropped = dropGemsForDeaths(this.gems, deaths, this.nextGemId, XP_PER_GEM);
+    this.nextGemId = dropped.nextId;
+    let gems = dropped.gems;
+    let gainedXp = dropped.overflowXp;
+
+    const collected = collectGems(this.player, gems, stats.pickupRadius);
+    gems = collected.gems;
+    gainedXp += collected.gainedXp;
+    this.gems = gems;
+    if (gainedXp > 0) {
+      this.player = applyExperienceToPlayer(this.player, gainedXp);
+    }
 
     const remaining: EnemyState[] = [];
     for (const enemy of enemies) {
@@ -113,7 +171,39 @@ export class World {
 
     if (this.player.health <= 0) {
       this.status = 'gameOver';
+      this.offers = [];
+      return;
     }
+
+    if (this.player.pendingLevelUps > 0) {
+      this.beginLevelUp();
+    }
+  }
+
+  chooseUpgrade(index: number): boolean {
+    if (this.status !== 'levelUp') {
+      return false;
+    }
+
+    const offer = this.offers[index];
+    if (offer === undefined) {
+      return false;
+    }
+
+    this.offers = [];
+    this.player = applyUpgrade(this.player, offer.id);
+    this.player = {
+      ...this.player,
+      pendingLevelUps: Math.max(0, this.player.pendingLevelUps - 1),
+    };
+
+    if (this.player.pendingLevelUps > 0) {
+      this.beginLevelUp();
+      return true;
+    }
+
+    this.status = 'playing';
+    return true;
   }
 
   reset(): void {
@@ -121,11 +211,15 @@ export class World {
     this.previousPlayer = clonePlayerState(this.player);
     this.previousEnemies = new Map();
     this.enemies = [];
+    this.gems = [];
     this.spawn = createSpawnState();
     this.pulse = null;
+    this.slash = null;
+    this.offers = [];
     this.status = 'playing';
     this.kills = 0;
     this.elapsedSeconds = 0;
+    this.nextGemId = 1;
   }
 
   getStatus(): RunStatus {
@@ -148,6 +242,14 @@ export class World {
     return this.enemies.map(cloneEnemyState);
   }
 
+  getGems(): XpGem[] {
+    return this.gems.map(cloneXpGem);
+  }
+
+  getOffers(): UpgradeOffer[] {
+    return this.offers.map((offer) => ({ ...offer }));
+  }
+
   getSnapshot(interpolationAlpha: number): WorldSnapshot {
     const alpha = Math.min(1, Math.max(0, interpolationAlpha));
     return {
@@ -162,13 +264,31 @@ export class World {
           this.player.hurtCooldown > 0
             ? Math.min(1, this.player.hurtCooldown / PLAYER_HURT_COOLDOWN)
             : 0,
+        level: this.player.level,
+        xp: this.player.xp,
+        xpToNext: this.player.xpToNext,
+        pendingLevelUps: this.player.pendingLevelUps,
       },
       enemies: this.enemies.map((enemy) => this.interpolateEnemy(enemy, alpha)),
+      gems: this.gems.map((gem) => ({ id: gem.id, x: gem.x, z: gem.z })),
       pulse: this.pulse,
+      slash: this.slash,
+      offers: this.getOffers(),
       status: this.status,
       kills: this.kills,
       elapsedSeconds: this.elapsedSeconds,
     };
+  }
+
+  private beginLevelUp(): void {
+    this.offers = generateUpgradeOffers(this.player.abilities, this.random);
+    if (this.offers.length === 0) {
+      this.player = { ...this.player, pendingLevelUps: 0 };
+      this.status = 'playing';
+      return;
+    }
+
+    this.status = 'levelUp';
   }
 
   private interpolateEnemy(enemy: EnemyState, alpha: number): EnemySnapshot {
@@ -187,6 +307,22 @@ export class World {
           : 0,
     };
   }
+}
+
+function uniqueDeaths(
+  pulseDeaths: readonly CombatDeath[],
+  swordDeaths: readonly CombatDeath[],
+): CombatDeath[] {
+  const seen = new Set<number>();
+  const deaths: CombatDeath[] = [];
+  for (const death of [...pulseDeaths, ...swordDeaths]) {
+    if (seen.has(death.id)) {
+      continue;
+    }
+    seen.add(death.id);
+    deaths.push(death);
+  }
+  return deaths;
 }
 
 function lerp(from: number, to: number, alpha: number): number {

@@ -4,7 +4,7 @@ Bernardo vs. The Undead: Rise of the Siren King
 
 This document is the gameplay source of truth. It distinguishes **confirmed** requirements from **planned** ideas. Numeric combat values are not finalized; they will live in typed configuration once combat exists.
 
-**Status:** Confirmed design. Phase 3 is a playable combat prototype against Skeleton Warriors. Experience and abilities are not implemented yet.
+**Status:** Confirmed design. Phase 4 is a playable combat-and-progression prototype: Skeleton Warriors, XP gems, paused level-ups, and five data-driven upgrades. The Siren King, audio, and final models are not implemented yet.
 
 ## 1. Premise
 
@@ -49,16 +49,17 @@ A complete run is an **initial target of 10–15 minutes**, subject to playtesti
 
 ## 5. Initial Playable Scope
 
-The first enjoyable vertical slice (Phase 3) is implemented as:
+The first enjoyable vertical slice (Phase 3) is implemented and Phase 4 extends it with XP gems and upgrade choices:
 
 - A bounded forest arena with an isometric follow camera.
 - Bernardo represented by a recognizable procedural placeholder.
 - Keyboard movement on the XZ plane.
 - Skeleton Warriors that spawn, pursue, and deal contact or melee damage.
-- One automatic nearby attack.
+- Automatic Magic Pulse, with Lightning Sword unlockable from level-up.
 - Player and enemy health, death, game-over, and restart.
+- XP gems, leveling, and a paused three-choice upgrade overlay.
 
-Explicitly **not** in the first slice: additional skeleton types, experience, ability menus, audio, final models, the Siren King, mobile controls, and persistence.
+Explicitly **not** in this slice: additional skeleton types, audio, final models, the Siren King, mobile controls, and persistence.
 
 ## 6. Bernardo
 
@@ -108,7 +109,7 @@ Dodge is **not** a confirmed gameplay action. Early movement is walk/run only.
 | --------------------- | ------------------------------------- | ------------------------ |
 | W A S D or arrow keys | Move on the XZ plane, camera-relative | Implemented              |
 | Escape                | Pause / resume                        | Planned with UI          |
-| Level-up UI           | Mouse or keyboard selection           | Planned with progression |
+| Level-up UI           | Mouse or keys 1–3                     | Implemented              |
 
 Attack keys are not required for the automatic combat model.
 
@@ -180,12 +181,12 @@ Planned states for a warrior: spawn → pursue → attack → stagger/hit → di
 
 One nearby automatic attack against Skeleton Warriors is enough. Additional attack types wait until that loop is fun.
 
-Phase 3 combat lives in `src/config/combat.ts` and is still a first-pass balance, not a final tune.
+Combat values live in `src/config/combat.ts` and `src/config/abilities.ts`. They are a first-pass balance, not a final tune.
 
 Implemented now:
 
-- Automatic short-range magical pulse.
-- Nearest living target in range; ties use the lower enemy id.
+- Automatic short-range Magic Pulse. Nearest living target in range; ties use the lower enemy id.
+- Optional Lightning Sword: automatic forward arc slash with its own cooldown. Pulse and sword can fire in the same step. An enemy already slain this step cannot drop XP or increment kills again.
 - Skeleton Warrior contact damage with a player invulnerability window.
 - One contact hit is applied per window, even if several skeletons overlap.
 - Game over at zero health, with a kill count and in-session restart.
@@ -199,26 +200,40 @@ Implemented now:
 - Leveling up pauses the run and presents upgrade choices.
 - Abilities are configurable and extensible.
 
-### Planned first ability concepts
+### Implemented in Phase 4
 
-These are design concepts, not a commitment to ship all of them:
+- Each slain Skeleton Warrior drops one XP gem (`XP_PER_GEM = 10`) at its death position.
+- Gems are collected on the XZ plane inside `pickupRadius`. They do not block movement.
+- XP is integer. Threshold for level `n → n+1` is `20 + (n - 1) * 10`. Excess XP carries over. One award can cross several levels.
+- Each earned level grants exactly one upgrade choice, processed sequentially.
+- Simulation pauses for the overlay: no movement, spawn, attacks, contact damage, or survival-time advance. Rendering may continue. See ADR 0007.
+- Three distinct eligible upgrades are offered when the pool is large enough. Maxed upgrades are never offered. Lightning Sword starts locked and can be unlocked from the menu.
+- If the pool is empty, pending levels are consumed and the run continues so the overlay cannot soft-lock.
+- Restart resets XP, level, abilities, gems, offers, and cooldowns.
+
+Implemented abilities (`src/config/abilities.ts`):
+
+| Ability         | Role                                              | Max level |
+| --------------- | ------------------------------------------------- | --------- |
+| Magic Pulse     | Starting automatic nearby burst                   | 5         |
+| Lightning Sword | Unlockable automatic forward lightning slash      | 4         |
+| Swift Boots     | Movement speed                                    | 3         |
+| Vitality        | Max HP up, plus a defined HP restore              | 4         |
+| Magnet          | Larger XP pickup radius, not enemy collision      | 3         |
+
+Upgrade values are additive table lookups, not unbounded multipliers. Vitality never resets current HP; current HP is clamped to the new maximum.
+
+### Planned later abilities
+
+These remain design concepts, not a commitment to ship all of them:
 
 | Ability         | Intended effect                    |
 | --------------- | ---------------------------------- |
-| Lightning Sword | Automatic nearby attack            |
 | Fireball        | Explosive projectile               |
 | Thunder Strike  | Lightning damage                   |
 | Dino Guardian   | Attacking companion                |
 | Magic Shield    | Temporary protection               |
 | Tornado         | Area damage and enemy displacement |
-
-Lightning Sword, or an equivalent nearby auto-attack, is the expected first implemented ability because it matches the first combat slice.
-
-### Planned upgrades
-
-Upgrades may change damage, attack speed, projectile count, range, area, duration, or special effects. Multiple upgrade levels per ability are intended.
-
-Progression is out of scope until Phase 4.
 
 ## 12. Difficulty
 
@@ -231,7 +246,8 @@ Threat should increase during a run. A later run should not feel identical to th
 - Wave or spawn-director pacing.
 - Stronger or more numerous skeletons over time.
 - Elite introductions before the boss.
-- The 10–15 minute full-run target is a pacing goal, not a Phase 3 requirement.
+- Spawn interval already decays over survival time (`SPAWN_INTERVAL_DECAY_PER_SECOND`).
+- The 10–15 minute full-run target is a pacing goal, not a Phase 4 requirement.
 
 ## 13. The Siren King
 
@@ -285,10 +301,15 @@ There is no confirmed meta-progression between runs in the first public version.
 - Health must be observable.
 - The player must be able to tell that a run has ended.
 
+### Implemented in Phase 4
+
+- Health bar and current/max HP.
+- Level, XP bar, and XP values.
+- Kill count and survival timer.
+- Level-up overlay with three upgrade cards, mouse and 1–3 keys.
+
 ### Planned
 
-- Experience and level.
-- Ability selection overlay that pauses simulation.
 - Pause menu.
 - Settings, including graphics quality later.
 - Victory and defeat screens.
@@ -316,8 +337,8 @@ See `ASSETS_LICENSE.md` and `public/assets/README.md`.
 These do not block Phase 1 or the first movement slice:
 
 1. Exact arena size and whether props create line-of-sight cover.
-2. Whether experience crystals magnetize toward the player at a certain pickup radius.
-3. How many ability choices appear per level-up.
+2. XP crystals are collected inside a pickup radius. Magnet increases that radius; gems do not yet fly toward Bernardo.
+3. Three ability choices appear per level-up when at least three upgrades remain eligible.
 4. Whether a run timer or a spawn-director triggers the Siren King.
 5. Whether any between-run unlocks exist for the first public release.
 

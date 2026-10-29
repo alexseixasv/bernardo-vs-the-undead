@@ -8,7 +8,7 @@ Fight endless hordes of skeletons, unlock powerful abilities, survive an increas
 
 Inspired by the fast-paced progression and survival mechanics of _Vampire Survivors_, Bernardo vs. The Undead combines accessible gameplay, stylized 3D graphics, and challenging encounters in a single-player browser experience.
 
-> **Project Status:** Phase 3 complete — survive skeleton warriors with automatic attacks, health, and restart. Progression is not implemented yet.
+> **Project Status:** Phase 4 complete — survive skeleton warriors, collect XP gems, level up, and choose upgrades. Audio, final models, and the Siren King are not implemented yet.
 
 ---
 
@@ -389,7 +389,7 @@ npm install
 npm run dev
 ```
 
-Open the local URL displayed by Vite. Move with WASD or the arrow keys. Bernardo attacks nearby skeletons automatically. There is no experience or ability menu yet.
+Open the local URL displayed by Vite. Move with WASD or the arrow keys. Bernardo attacks nearby skeletons automatically. Defeated skeletons drop XP gems. Level-ups pause the run and present three upgrade cards (click or press 1–3).
 
 ### Production Build
 
@@ -498,11 +498,11 @@ The game will be developed incrementally through independently testable mileston
 
 ### Phase 4 — Progression
 
-- [ ] Implement experience collection.
-- [ ] Add character leveling.
-- [ ] Implement ability selection.
-- [ ] Add upgradeable abilities.
-- [ ] Introduce difficulty scaling.
+- [x] Implement experience collection.
+- [x] Add character leveling.
+- [x] Implement ability selection.
+- [x] Add upgradeable abilities.
+- [x] Introduce difficulty scaling.
 
 ### Phase 5 — Visual Identity
 

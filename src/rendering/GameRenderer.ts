@@ -1,4 +1,5 @@
 import {
+  BoxGeometry,
   Color,
   Mesh,
   MeshBasicMaterial,
@@ -9,6 +10,7 @@ import {
 } from 'three';
 
 import { ATTACK_PULSE_DURATION } from '../config/combat';
+import { SWORD_SLASH_DURATION } from '../config/progression';
 import {
   CAMERA_FAR,
   CAMERA_FOV,
@@ -16,11 +18,12 @@ import {
   CAMERA_OFFSET,
   PLAYER_LOOK_HEIGHT,
 } from '../config/world';
-import type { EnemySnapshot, WorldSnapshot } from '../world/World';
+import type { EnemySnapshot, GemSnapshot, WorldSnapshot } from '../world/World';
 import { type Vec3, stepCameraFollow } from './cameraFollow';
 import { type BernardoPlaceholder, createBernardoPlaceholder } from './createBernardoPlaceholder';
 import { type ForestArena, createForestArena } from './createForestArena';
 import { type SkeletonAssets, createSkeletonAssets } from './createSkeletonPlaceholder';
+import { type XpGemAssets, createXpGemAssets } from './createXpGemPlaceholder';
 import { isWebGL2Available, WebGLInitError } from './webgl';
 
 export class GameRenderer {
@@ -30,11 +33,16 @@ export class GameRenderer {
   private readonly forest: ForestArena;
   private readonly bernardo: BernardoPlaceholder;
   private readonly skeletons: SkeletonAssets;
+  private readonly gems: XpGemAssets;
   private readonly skeletonViews = new Map<number, ReturnType<SkeletonAssets['createView']>>();
+  private readonly gemViews = new Map<number, ReturnType<XpGemAssets['createView']>>();
   private readonly pulse: Mesh;
   private readonly pulseMaterial: MeshBasicMaterial;
+  private readonly slash: Mesh;
+  private readonly slashMaterial: MeshBasicMaterial;
   private readonly handleResize: () => void;
   private lookAt: Vec3 = { x: 0, y: PLAYER_LOOK_HEIGHT, z: 0 };
+  private fxTime = 0;
   private disposed = false;
 
   constructor(canvas: HTMLCanvasElement) {
@@ -81,6 +89,7 @@ export class GameRenderer {
     this.forest = createForestArena();
     this.bernardo = createBernardoPlaceholder();
     this.skeletons = createSkeletonAssets();
+    this.gems = createXpGemAssets();
     this.forest.scene.add(this.bernardo.group);
 
     this.pulseMaterial = new MeshBasicMaterial({
@@ -94,6 +103,16 @@ export class GameRenderer {
     this.pulse.visible = false;
     this.forest.scene.add(this.pulse);
 
+    this.slashMaterial = new MeshBasicMaterial({
+      color: new Color(0x9ef7ff),
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+    });
+    this.slash = new Mesh(new BoxGeometry(0.22, 0.08, 1), this.slashMaterial);
+    this.slash.visible = false;
+    this.forest.scene.add(this.slash);
+
     this.handleResize = () => {
       this.resize();
     };
@@ -104,6 +123,8 @@ export class GameRenderer {
     if (this.disposed) {
       return;
     }
+
+    this.fxTime += deltaSeconds;
 
     const { player } = snapshot;
     this.bernardo.group.position.set(player.x, player.y, player.z);
@@ -117,7 +138,9 @@ export class GameRenderer {
     );
 
     this.syncSkeletons(snapshot.enemies);
+    this.syncGems(snapshot.gems);
     this.syncPulse(snapshot);
+    this.syncSlash(snapshot);
 
     const pose = stepCameraFollow(
       this.lookAt,
@@ -133,8 +156,11 @@ export class GameRenderer {
 
   resetForNewRun(): void {
     this.clearSkeletons();
+    this.clearGems();
     this.lookAt = { x: 0, y: PLAYER_LOOK_HEIGHT, z: 0 };
+    this.fxTime = 0;
     this.pulse.visible = false;
+    this.slash.visible = false;
     this.bernardo.group.scale.setScalar(1);
     this.bernardo.fillLight.intensity = 2.4;
     this.bernardo.fillLight.color.setHex(0xfff3c8);
@@ -148,12 +174,17 @@ export class GameRenderer {
     this.disposed = true;
     window.removeEventListener('resize', this.handleResize);
     this.clearSkeletons();
+    this.clearGems();
     this.forest.scene.remove(this.bernardo.group);
     this.forest.scene.remove(this.pulse);
+    this.forest.scene.remove(this.slash);
     this.pulse.geometry.dispose();
     this.pulseMaterial.dispose();
+    this.slash.geometry.dispose();
+    this.slashMaterial.dispose();
     this.bernardo.dispose();
     this.skeletons.dispose();
+    this.gems.dispose();
     this.forest.dispose();
     this.renderer.dispose();
   }
@@ -186,6 +217,32 @@ export class GameRenderer {
     }
   }
 
+  private syncGems(gems: readonly GemSnapshot[]): void {
+    const seen = new Set<number>();
+
+    for (const gem of gems) {
+      seen.add(gem.id);
+      let view = this.gemViews.get(gem.id);
+      if (view === undefined) {
+        view = this.gems.createView();
+        this.forest.scene.add(view);
+        this.gemViews.set(gem.id, view);
+      }
+
+      const bob = Math.sin(this.fxTime * 5 + gem.id * 1.7) * 0.08;
+      view.position.set(gem.x, 0.38 + bob, gem.z);
+      view.rotation.y = this.fxTime * 2.4 + gem.id;
+    }
+
+    for (const [id, view] of this.gemViews) {
+      if (seen.has(id)) {
+        continue;
+      }
+      this.forest.scene.remove(view);
+      this.gemViews.delete(id);
+    }
+  }
+
   private syncPulse(snapshot: WorldSnapshot): void {
     const pulse = snapshot.pulse;
     if (pulse === null) {
@@ -200,11 +257,38 @@ export class GameRenderer {
     this.pulseMaterial.opacity = 0.85 * (1 - progress);
   }
 
+  private syncSlash(snapshot: WorldSnapshot): void {
+    const slash = snapshot.slash;
+    if (slash === null) {
+      this.slash.visible = false;
+      return;
+    }
+
+    const progress = 1 - slash.remaining / SWORD_SLASH_DURATION;
+    const length = Math.max(0.8, slash.range);
+    this.slash.visible = true;
+    this.slash.scale.set(1 + progress * 0.35, 1, length);
+    this.slash.position.set(
+      slash.x + Math.sin(slash.yaw) * (length * 0.55),
+      0.9,
+      slash.z + Math.cos(slash.yaw) * (length * 0.55),
+    );
+    this.slash.rotation.y = slash.yaw;
+    this.slashMaterial.opacity = 0.9 * (1 - progress);
+  }
+
   private clearSkeletons(): void {
     for (const view of this.skeletonViews.values()) {
       this.forest.scene.remove(view);
     }
     this.skeletonViews.clear();
+  }
+
+  private clearGems(): void {
+    for (const view of this.gemViews.values()) {
+      this.forest.scene.remove(view);
+    }
+    this.gemViews.clear();
   }
 
   private resize(): void {
