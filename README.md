@@ -6,9 +6,9 @@
 
 Fight endless hordes of skeletons, unlock powerful abilities, survive an increasingly dangerous enchanted forest, and defeat the legendary Siren King.
 
-Inspired by the fast-paced progression and survival mechanics of *Vampire Survivors*, Bernardo vs. The Undead combines accessible gameplay, stylized 3D graphics, and challenging encounters in a single-player browser experience.
+Inspired by the fast-paced progression and survival mechanics of _Vampire Survivors_, Bernardo vs. The Undead combines accessible gameplay, stylized 3D graphics, and challenging encounters in a single-player browser experience.
 
-> **Project Status:** Phase 0 complete — engineering documentation is in place. Application code has not been initialized.
+> **Project Status:** Phase 1 complete — Vite, TypeScript, and Three.js bootstrap with a testable game loop and CI. Gameplay is not implemented yet.
 
 ---
 
@@ -68,15 +68,15 @@ His design is inspired by a real child and adapted into a stylized, expressive 3
 
 ### Planned Animations
 
-| Animation | Description |
-|---|---|
-| Idle | Default standing animation |
-| Run | Character movement |
-| Attack | Primary attack animation |
-| Hit | Damage reaction |
-| Dodge | Evasive movement |
-| Victory | Celebration after defeating the boss |
-| Defeat | End-of-run animation |
+| Animation | Description                          |
+| --------- | ------------------------------------ |
+| Idle      | Default standing animation           |
+| Run       | Character movement                   |
+| Attack    | Primary attack animation             |
+| Hit       | Damage reaction                      |
+| Dodge     | Evasive movement                     |
+| Victory   | Celebration after defeating the boss |
+| Defeat    | End-of-run animation                 |
 
 The character will use a reusable animation system based on Three.js `AnimationMixer`.
 
@@ -88,14 +88,14 @@ Character models and animations will be loaded from external GLB assets to keep 
 
 The forest is populated by different types of skeletons, each introducing unique combat challenges.
 
-| Enemy | Behavior | Threat |
-|---|---|---|
-| Skeleton Warrior | Approaches and attacks at close range | Low |
-| Skeleton Runner | Moves quickly toward the player | Medium |
-| Skeleton Archer | Attacks from a distance | Medium |
-| Skeleton Mage | Casts magical projectiles | High |
-| Skeleton Brute | Slow movement, high health and damage | High |
-| Elite Skeleton | Enhanced attributes and special abilities | Very High |
+| Enemy            | Behavior                                  | Threat    |
+| ---------------- | ----------------------------------------- | --------- |
+| Skeleton Warrior | Approaches and attacks at close range     | Low       |
+| Skeleton Runner  | Moves quickly toward the player           | Medium    |
+| Skeleton Archer  | Attacks from a distance                   | Medium    |
+| Skeleton Mage    | Casts magical projectiles                 | High      |
+| Skeleton Brute   | Slow movement, high health and damage     | High      |
+| Elite Skeleton   | Enhanced attributes and special abilities | Very High |
 
 The first combat prototype uses Skeleton Warriors only. Additional types are introduced after that slice is playable.
 
@@ -137,11 +137,11 @@ The Siren King is an original creature featuring:
 
 The encounter is planned around three combat phases.
 
-| Phase | Health | Mechanics |
-|---|---|---|
-| Awakening | 100–70% | Sonic waves and ground attacks |
-| The Summoning | 70–30% | Skeleton reinforcements and area attacks |
-| Final Resonance | 30–0% | Increased aggression and powerful sonic attacks |
+| Phase           | Health  | Mechanics                                       |
+| --------------- | ------- | ----------------------------------------------- |
+| Awakening       | 100–70% | Sonic waves and ground attacks                  |
+| The Summoning   | 70–30%  | Skeleton reinforcements and area attacks        |
+| Final Resonance | 30–0%   | Increased aggression and powerful sonic attacks |
 
 ### Planned Boss Abilities
 
@@ -165,14 +165,14 @@ Bernardo becomes stronger throughout each run by collecting experience and unloc
 
 ### Initial Ability Concepts
 
-| Ability | Effect |
-|---|---|
-| Lightning Sword | Automatically attacks nearby enemies |
-| Fireball | Launches explosive magical projectiles |
-| Thunder Strike | Damages enemies with lightning |
-| Dino Guardian | Summons a companion that attacks enemies |
-| Magic Shield | Provides temporary protection |
-| Tornado | Pushes enemies away and deals area damage |
+| Ability         | Effect                                    |
+| --------------- | ----------------------------------------- |
+| Lightning Sword | Automatically attacks nearby enemies      |
+| Fireball        | Launches explosive magical projectiles    |
+| Thunder Strike  | Damages enemies with lightning            |
+| Dino Guardian   | Summons a companion that attacks enemies  |
+| Magic Shield    | Provides temporary protection             |
+| Tornado         | Pushes enemies away and deals area damage |
 
 ### Upgrade System
 
@@ -196,21 +196,21 @@ The progression system should be data-driven, allowing new abilities and upgrade
 
 The project prioritizes modern web technologies, modular architecture, performance, and maintainability.
 
-| Category | Technology |
-|---|---|
-| Language | TypeScript |
-| 3D Rendering | Three.js |
-| Development & Build | Vite |
-| Physics | Simplified gameplay collision first; Rapier only if required |
-| Audio | Howler.js, when audio is introduced |
-| UI | HTML5 / CSS3 |
-| Unit Testing | Vitest |
-| End-to-End Testing | Playwright, when a playable scene exists |
-| Code Quality | ESLint / Prettier |
-| Automation | GitHub Actions |
-| Deployment | Cloudflare Pages |
-| 3D Assets | Blender / GLTF / GLB |
-| Local Persistence | IndexedDB, if local saves are added |
+| Category            | Technology                                                   |
+| ------------------- | ------------------------------------------------------------ |
+| Language            | TypeScript                                                   |
+| 3D Rendering        | Three.js                                                     |
+| Development & Build | Vite                                                         |
+| Physics             | Simplified gameplay collision first; Rapier only if required |
+| Audio               | Howler.js, when audio is introduced                          |
+| UI                  | HTML5 / CSS3                                                 |
+| Unit Testing        | Vitest                                                       |
+| End-to-End Testing  | Playwright, when a playable scene exists                     |
+| Code Quality        | ESLint / Prettier                                            |
+| Automation          | GitHub Actions                                               |
+| Deployment          | Cloudflare Pages                                             |
+| 3D Assets           | Blender / GLTF / GLB                                         |
+| Local Persistence   | IndexedDB, if local saves are added                          |
 
 ### Why Three.js?
 
@@ -354,13 +354,13 @@ Avoid expensive pathfinding and unnecessary per-frame calculations for large ene
 
 Initial performance targets:
 
-| Metric | Target |
-|---|---|
-| Desktop Frame Rate | 60 FPS |
-| Active Enemies | 200+ |
-| Gameplay Responsiveness | Consistent input handling |
-| Loading | Optimized assets and lazy loading |
-| Memory | Stable usage across repeated runs |
+| Metric                  | Target                            |
+| ----------------------- | --------------------------------- |
+| Desktop Frame Rate      | 60 FPS                            |
+| Active Enemies          | 200+                              |
+| Gameplay Responsiveness | Consistent input handling         |
+| Loading                 | Optimized assets and lazy loading |
+| Memory                  | Stable usage across repeated runs |
 
 These are engineering targets, not verified benchmarks.
 
@@ -372,16 +372,12 @@ Actual performance will be measured on documented hardware and browser configura
 
 ### Prerequisites
 
-The project is expected to require:
-
-- Node.js LTS
+- Node.js 22 LTS (see `.nvmrc`)
 - npm
 - A modern browser supporting WebGL2
 - Git
 
 ### Local Development
-
-Once the initial project setup is complete:
 
 ```bash
 git clone <repository-url>
@@ -393,12 +389,14 @@ npm install
 npm run dev
 ```
 
-Open the local URL displayed by Vite.
+Open the local URL displayed by Vite. The bootstrap scene is a dark forest-colored ground plane, isometric lighting, and a yellow marker. There is no player control yet.
 
 ### Production Build
 
 ```bash
 npm run build
+
+npm run preview
 ```
 
 ### Run Unit Tests
@@ -407,11 +405,7 @@ npm run build
 npm run test
 ```
 
-### Run End-to-End Tests
-
-```bash
-npm run test:e2e
-```
+End-to-end tests are not configured yet. Playwright will be added when a playable scene exists.
 
 ### Code Quality
 
@@ -419,9 +413,9 @@ npm run test:e2e
 npm run lint
 
 npm run typecheck
-```
 
-> **Note:** These commands describe the intended development workflow. They will become available as the project foundation is implemented.
+npm run format
+```
 
 ---
 
@@ -479,11 +473,11 @@ The game will be developed incrementally through independently testable mileston
 
 ### Phase 1 — Technical Foundation
 
-- [ ] Initialize Vite and TypeScript.
-- [ ] Configure Three.js.
-- [ ] Implement a fixed-timestep game loop.
-- [ ] Configure testing and linting.
-- [ ] Set up GitHub Actions.
+- [x] Initialize Vite and TypeScript.
+- [x] Configure Three.js.
+- [x] Implement a fixed-timestep game loop.
+- [x] Configure testing and linting.
+- [x] Set up GitHub Actions.
 
 ### Phase 2 — First Playable Scene
 
@@ -578,15 +572,15 @@ Architectural decisions will be documented in `docs/decisions/`.
 
 The following documentation will be maintained as the project evolves:
 
-| Document | Purpose |
-|---|---|
-| `README.md` | Project overview and setup |
-| `AGENTS.md` | AI-assisted development guidelines |
-| `docs/GAME_DESIGN.md` | Gameplay mechanics and balancing |
-| `docs/ARCHITECTURE.md` | Technical architecture |
-| `docs/ROADMAP.md` | Development milestones |
-| `docs/PERFORMANCE.md` | Performance strategy and benchmarks, created when measurements exist |
-| `docs/decisions/` | Architecture Decision Records |
+| Document               | Purpose                                                              |
+| ---------------------- | -------------------------------------------------------------------- |
+| `README.md`            | Project overview and setup                                           |
+| `AGENTS.md`            | AI-assisted development guidelines                                   |
+| `docs/GAME_DESIGN.md`  | Gameplay mechanics and balancing                                     |
+| `docs/ARCHITECTURE.md` | Technical architecture                                               |
+| `docs/ROADMAP.md`      | Development milestones                                               |
+| `docs/PERFORMANCE.md`  | Performance strategy and benchmarks, created when measurements exist |
+| `docs/decisions/`      | Architecture Decision Records                                        |
 
 ---
 
@@ -694,6 +688,6 @@ Beyond the gameplay, the project is an opportunity to explore real-time renderin
 
 ---
 
-*Bernardo vs. The Undead: Rise of the Siren King*
+_Bernardo vs. The Undead: Rise of the Siren King_
 
 **One little hero. Endless skeletons. One legendary boss.**
